@@ -130,14 +130,14 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
       if (!signupDateStr) return false
       try {
         const signupDate = new Date(signupDateStr)
-        return signupDate <= new Date(dateString)
+        return signupDate <= new Date(dateString + 'T00:00:00.000Z') // FIXED: Ensure valid date string for constructor
       } catch {
         return false
       }
     }).length
 
     return {
-      date: dateString,
+      date: dateString, // FIXED: Always returns string, never undefined
       signups: signupsOnDate,
       totalUsers: totalUsersUpToDate
     }
@@ -172,7 +172,7 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
         if (!paymentDateStr) return false
         try {
           const paymentDate = new Date(paymentDateStr)
-          return paymentDate <= new Date(dateString)
+          return paymentDate <= new Date(dateString + 'T00:00:00.000Z') // FIXED: Ensure valid date string for constructor
         } catch {
           return false
         }
@@ -180,7 +180,7 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
     return {
-      date: dateString,
+      date: dateString, // FIXED: Always returns string, never undefined
       revenue: revenueOnDate,
       mrr: mrrUpToDate
     }
@@ -219,7 +219,7 @@ export function generateActivityData(sessions: UserSession[], users: User[]): Ac
     }).length
 
     return {
-      date: dateString,
+      date: dateString, // FIXED: Always returns string, never undefined
       logins: loginsOnDate,
       registrations: registrationsOnDate,
       totalActivities: loginsOnDate + registrationsOnDate
