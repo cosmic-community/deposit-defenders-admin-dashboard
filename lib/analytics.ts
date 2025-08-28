@@ -105,13 +105,22 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   const sortedDates = Object.keys(data).sort()
   
   return sortedDates.map(date => {
-    runningTotal += data[date].signups
-    data[date].totalUsers = runningTotal
+    const dateData = data[date]
+    if (dateData) {
+      runningTotal += dateData.signups
+      dateData.totalUsers = runningTotal
+      
+      return {
+        date,
+        signups: dateData.signups,
+        totalUsers: dateData.totalUsers
+      }
+    }
     
     return {
       date,
-      signups: data[date].signups,
-      totalUsers: data[date].totalUsers
+      signups: 0,
+      totalUsers: runningTotal
     }
   })
 }
@@ -130,9 +139,10 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   revenue.forEach(record => {
     if (record.metadata?.payment_date) {
       const paymentDate = format(parseISO(record.metadata.payment_date), 'yyyy-MM-dd')
-      if (data[paymentDate]) {
-        data[paymentDate].revenue += record.metadata.amount || 0
-        data[paymentDate].count++
+      const dayData = data[paymentDate]
+      if (dayData) {
+        dayData.revenue += record.metadata.amount || 0
+        dayData.count++
       }
     }
   })
@@ -141,11 +151,14 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   const proUsers = revenue.filter(r => r.metadata?.subscription_plan === 'pro').length
   const mrr = proUsers * 29.99
   
-  return Object.keys(data).sort().map(date => ({
-    date,
-    revenue: data[date].revenue,
-    mrr
-  }))
+  return Object.keys(data).sort().map(date => {
+    const dayData = data[date]
+    return {
+      date,
+      revenue: dayData ? dayData.revenue : 0,
+      mrr
+    }
+  })
 }
 
 export function createUserGrowthChart(data: UserGrowthData[]): ChartData {
@@ -201,6 +214,7 @@ export function createSubscriptionChart(freeUsers: number, proUsers: number): Ch
     labels: ['Free Users', 'Pro Users'],
     datasets: [
       {
+        label: 'User Distribution',
         data: [freeUsers, proUsers],
         backgroundColor: ['#94a3b8', '#3b82f6'],
         borderWidth: 0
