@@ -1,11 +1,13 @@
 import { User } from '@/types'
 import { formatDistanceToNow, parseISO } from 'date-fns'
+import { MoreVertical, Edit, Trash2, Eye, Mail } from 'lucide-react'
 
 interface UserTableProps {
   users: User[]
+  showActions?: boolean
 }
 
-export default function UserTable({ users }: UserTableProps) {
+export default function UserTable({ users, showActions = false }: UserTableProps) {
   if (!users || users.length === 0) {
     return (
       <div className="bg-card border border-border rounded-lg p-8 text-center">
@@ -16,10 +18,6 @@ export default function UserTable({ users }: UserTableProps) {
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="px-6 py-4 border-b border-border">
-        <h3 className="text-lg font-semibold text-foreground">Recent Users</h3>
-      </div>
-      
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-muted">
@@ -42,6 +40,11 @@ export default function UserTable({ users }: UserTableProps) {
               <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Joined
               </th>
+              {showActions && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -60,8 +63,8 @@ export default function UserTable({ users }: UserTableProps) {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                     user.metadata?.subscription_plan === 'pro'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-gray-100 text-gray-800'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                   }`}>
                     {user.metadata?.subscription_plan || 'free'}
                   </span>
@@ -75,10 +78,10 @@ export default function UserTable({ users }: UserTableProps) {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                     user.metadata?.status === 'active'
-                      ? 'bg-green-100 text-green-800'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                       : user.metadata?.status === 'canceled'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                   }`}>
                     {user.metadata?.status || 'active'}
                   </span>
@@ -89,6 +92,27 @@ export default function UserTable({ users }: UserTableProps) {
                     : 'Unknown'
                   }
                 </td>
+                {showActions && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <button className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded">
+                        <Eye size={16} />
+                      </button>
+                      <button className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded">
+                        <Edit size={16} />
+                      </button>
+                      <button className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded">
+                        <Mail size={16} />
+                      </button>
+                      <button className="p-1 text-muted-foreground hover:text-destructive hover:bg-accent rounded">
+                        <Trash2 size={16} />
+                      </button>
+                      <button className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded">
+                        <MoreVertical size={16} />
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
