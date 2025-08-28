@@ -59,8 +59,11 @@ async function ReportsContent() {
       return acc
     }, {} as Record<number, number>)
     
-    const peakHour = Object.keys(topPerformingHour).reduce((a, b) => 
-      topPerformingHour[parseInt(a)] > topPerformingHour[parseInt(b)] ? a : b, '0')
+    const peakHour = Object.keys(topPerformingHour).reduce((a, b) => {
+      const countA = topPerformingHour[parseInt(a)] || 0
+      const countB = topPerformingHour[parseInt(b)] || 0
+      return countA > countB ? a : b
+    }, '0')
 
     // Device analytics
     const deviceStats = {
