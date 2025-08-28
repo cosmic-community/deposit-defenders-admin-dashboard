@@ -71,7 +71,7 @@ export function calculateDashboardMetrics(
   }
 }
 
-// Calculate user-specific metrics - FIXED: Added missing properties
+// Calculate user-specific metrics
 export function calculateUserMetrics(users: User[]) {
   const now = new Date()
   const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -83,7 +83,6 @@ export function calculateUserMetrics(users: User[]) {
   const inactiveUsers = users.filter(user => user.metadata.status === 'inactive').length
   const canceledUsers = users.filter(user => user.metadata.status === 'canceled').length
 
-  // FIXED: Calculate missing properties
   const newUsersThisMonth = users.filter(user => {
     const signupDateStr = user.metadata.signup_date
     if (!signupDateStr) return false
@@ -105,12 +104,12 @@ export function calculateUserMetrics(users: User[]) {
   }
 }
 
-// Generate user growth data for charts - FIXED: Ensure date is always string and handle undefined dates
+// Generate user growth data for charts - FIXED: Ensure date is always string
 export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
     date.setDate(date.getDate() - (29 - i))
-    return date.toISOString().split('T')[0]
+    return date.toISOString().split('T')[0] // This will always be a string
   })
 
   return last30Days.map(dateString => {
@@ -137,19 +136,19 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
     }).length
 
     return {
-      date: dateString, // FIXED: Always returns string, never undefined
+      date: dateString, // Always a string, never undefined
       signups: signupsOnDate,
       totalUsers: totalUsersUpToDate
     }
   })
 }
 
-// Generate revenue data for charts - FIXED: Ensure date is always string and handle undefined dates
+// Generate revenue data for charts - FIXED: Ensure date is always string
 export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
     date.setDate(date.getDate() - (29 - i))
-    return date.toISOString().split('T')[0]
+    return date.toISOString().split('T')[0] // This will always be a string
   })
 
   return last30Days.map(dateString => {
@@ -180,19 +179,19 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
     return {
-      date: dateString, // FIXED: Always returns string, never undefined
+      date: dateString, // Always a string, never undefined
       revenue: revenueOnDate,
       mrr: mrrUpToDate
     }
   })
 }
 
-// Generate activity data for charts - FIXED: Ensure date is always string and handle undefined dates
+// Generate activity data for charts - FIXED: Ensure date is always string
 export function generateActivityData(sessions: UserSession[], users: User[]): ActivityData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
     date.setDate(date.getDate() - (29 - i))
-    return date.toISOString().split('T')[0]
+    return date.toISOString().split('T')[0] // This will always be a string
   })
 
   return last30Days.map(dateString => {
@@ -219,7 +218,7 @@ export function generateActivityData(sessions: UserSession[], users: User[]): Ac
     }).length
 
     return {
-      date: dateString, // FIXED: Always returns string, never undefined
+      date: dateString, // Always a string, never undefined
       logins: loginsOnDate,
       registrations: registrationsOnDate,
       totalActivities: loginsOnDate + registrationsOnDate
@@ -289,7 +288,7 @@ export function createActivityChart(data: ActivityData[]): ChartData {
   }
 }
 
-// FIXED: Added missing createHourlyActivityChart function
+// Create hourly activity chart
 export function createHourlyActivityChart(sessions: UserSession[]): ChartData {
   const hourlyData = new Array(24).fill(0)
   
@@ -365,7 +364,7 @@ export function calculatePercentageChange(current: number, previous: number): nu
   return ((current - previous) / previous) * 100
 }
 
-// Format date for display - FIXED: Explicitly return string type
+// Format date for display - FIXED: Always return string type
 export function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
