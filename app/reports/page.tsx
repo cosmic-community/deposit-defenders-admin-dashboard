@@ -59,10 +59,13 @@ async function ReportsContent() {
       return acc
     }, {} as Record<number, number>)
     
-    // Fix: Add safe access with default fallback for potentially empty object
+    // Fix: Add safe access with proper undefined checks for both sides of comparison
     const peakHour = Object.keys(topPerformingHour).length > 0 
-      ? Object.keys(topPerformingHour).reduce((a, b) => 
-          topPerformingHour[parseInt(a)] > topPerformingHour[parseInt(b)] ? a : b, '0')
+      ? Object.keys(topPerformingHour).reduce((a, b) => {
+          const aValue = topPerformingHour[parseInt(a)] || 0
+          const bValue = topPerformingHour[parseInt(b)] || 0
+          return aValue > bValue ? a : b
+        }, '0')
       : '0'
 
     // Device analytics
