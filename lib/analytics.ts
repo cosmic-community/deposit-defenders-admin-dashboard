@@ -13,12 +13,16 @@ export function calculateDashboardMetrics(
   // User metrics
   const totalUsers = users.length
   const newUsersToday = users.filter(user => {
-    const signupDate = new Date(user.metadata.signup_date)
+    const signupDateStr = user.metadata.signup_date
+    if (!signupDateStr) return false
+    const signupDate = new Date(signupDateStr)
     return signupDate >= today
   }).length
   
   const newUsersThisMonth = users.filter(user => {
-    const signupDate = new Date(user.metadata.signup_date)
+    const signupDateStr = user.metadata.signup_date
+    if (!signupDateStr) return false
+    const signupDate = new Date(signupDateStr)
     return signupDate >= thisMonth
   }).length
 
@@ -33,7 +37,9 @@ export function calculateDashboardMetrics(
   
   const monthlyRecurringRevenue = revenue
     .filter(record => {
-      const paymentDate = new Date(record.metadata.payment_date)
+      const paymentDateStr = record.metadata.payment_date
+      if (!paymentDateStr) return false
+      const paymentDate = new Date(paymentDateStr)
       return paymentDate >= thisMonth && record.metadata.status === 'paid'
     })
     .reduce((sum, record) => sum + record.metadata.amount, 0)
@@ -41,7 +47,9 @@ export function calculateDashboardMetrics(
   // Activity metrics
   const totalLogins = sessions.length
   const activeUsers = sessions.filter(session => {
-    const loginDate = new Date(session.metadata.login_date)
+    const loginDateStr = session.metadata.login_date
+    if (!loginDateStr) return false
+    const loginDate = new Date(loginDateStr)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     return loginDate >= sevenDaysAgo
   }).length
@@ -77,7 +85,9 @@ export function calculateUserMetrics(users: User[]) {
 
   // FIXED: Calculate missing properties
   const newUsersThisMonth = users.filter(user => {
-    const signupDate = new Date(user.metadata.signup_date)
+    const signupDateStr = user.metadata.signup_date
+    if (!signupDateStr) return false
+    const signupDate = new Date(signupDateStr)
     return signupDate >= thisMonth
   }).length
 
@@ -119,7 +129,7 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
     }).length
 
     return {
-      date,
+      date, // This is guaranteed to be a string from the map above
       signups: signupsOnDate,
       totalUsers: totalUsersUpToDate
     }
@@ -154,7 +164,7 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
     return {
-      date,
+      date, // This is guaranteed to be a string from the map above
       revenue: revenueOnDate,
       mrr: mrrUpToDate
     }
@@ -185,7 +195,7 @@ export function generateActivityData(sessions: UserSession[], users: User[]): Ac
     }).length
 
     return {
-      date,
+      date, // This is guaranteed to be a string from the map above
       logins: loginsOnDate,
       registrations: registrationsOnDate,
       totalActivities: loginsOnDate + registrationsOnDate
@@ -235,7 +245,7 @@ export function createRevenueChart(data: RevenueData[]): ChartData {
 // Create chart data for activity
 export function createActivityChart(data: ActivityData[]): ChartData {
   return {
-    labels: data.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    labels: data.map(d => new New(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
     datasets: [
       {
         label: 'Daily Logins',
