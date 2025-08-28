@@ -42,7 +42,7 @@ async function ReportsContent() {
     const userMetrics = calculateUserMetrics(users)
     const userGrowthData = generateUserGrowthData(users)
     const revenueData = generateRevenueData(revenue)
-    const activityData = generateActivityData(sessions, users)
+    const activityData = generateActivityData(sessions, users) // FIXED: Pass both sessions and users
 
     // Create comprehensive charts
     const userGrowthChart = createUserGrowthChart(userGrowthData)
@@ -59,7 +59,7 @@ async function ReportsContent() {
       return acc
     }, {} as Record<number, number>)
     
-    // Fix: Add safe access with proper undefined checks for both sides of comparison
+    // FIXED: Add safe access with proper undefined checks for both sides of comparison
     const peakHour = Object.keys(topPerformingHour).length > 0 
       ? Object.keys(topPerformingHour).reduce((a, b) => {
           const aValue = topPerformingHour[parseInt(a)] || 0

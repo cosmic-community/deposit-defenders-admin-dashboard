@@ -42,7 +42,7 @@ async function ActivityContent() {
     ])
 
     const userMetrics = calculateUserMetrics(users)
-    const activityData = generateActivityData(sessions, users)
+    const activityData = generateActivityData(sessions, users) // FIXED: Pass both sessions and users
     
     // Calculate activity metrics
     const totalActivities = sessions.length + users.length // Sessions + user registrations

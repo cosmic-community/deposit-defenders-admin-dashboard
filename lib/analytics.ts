@@ -63,8 +63,11 @@ export function calculateDashboardMetrics(
   }
 }
 
-// Calculate user-specific metrics
+// Calculate user-specific metrics - FIXED: Added missing newUsersThisMonth and conversionRate
 export function calculateUserMetrics(users: User[]) {
+  const now = new Date()
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  
   const totalUsers = users.length
   const activeUsers = users.filter(user => user.metadata.status === 'active').length
   const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
@@ -72,17 +75,28 @@ export function calculateUserMetrics(users: User[]) {
   const inactiveUsers = users.filter(user => user.metadata.status === 'inactive').length
   const canceledUsers = users.filter(user => user.metadata.status === 'canceled').length
 
+  // FIXED: Add missing newUsersThisMonth calculation
+  const newUsersThisMonth = users.filter(user => {
+    const signupDate = new Date(user.metadata.signup_date)
+    return signupDate >= thisMonth
+  }).length
+
+  // FIXED: Add missing conversionRate calculation
+  const conversionRate = totalUsers > 0 ? (proUsers / totalUsers) * 100 : 0
+
   return {
     totalUsers,
     activeUsers,
     proUsers,
     freeUsers,
     inactiveUsers,
-    canceledUsers
+    canceledUsers,
+    newUsersThisMonth,
+    conversionRate
   }
 }
 
-// Generate user growth data for charts
+// Generate user growth data for charts - FIXED: Handle undefined dates properly
 export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
@@ -92,12 +106,16 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
 
   return last30Days.map(date => {
     const signupsOnDate = users.filter(user => {
-      const signupDate = new Date(user.metadata.signup_date).toISOString().split('T')[0]
+      const userSignupDate = user.metadata.signup_date
+      if (!userSignupDate) return false
+      const signupDate = new Date(userSignupDate).toISOString().split('T')[0]
       return signupDate === date
     }).length
 
     const totalUsersUpToDate = users.filter(user => {
-      const signupDate = new Date(user.metadata.signup_date)
+      const userSignupDate = user.metadata.signup_date
+      if (!userSignupDate) return false
+      const signupDate = new Date(userSignupDate)
       return signupDate <= new Date(date)
     }).length
 
@@ -109,7 +127,7 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   })
 }
 
-// Generate revenue data for charts
+// Generate revenue data for charts - FIXED: Handle undefined dates properly
 export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
@@ -120,14 +138,18 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   return last30Days.map(date => {
     const revenueOnDate = revenue
       .filter(record => {
-        const paymentDate = new Date(record.metadata.payment_date).toISOString().split('T')[0]
+        const recordPaymentDate = record.metadata.payment_date
+        if (!recordPaymentDate) return false
+        const paymentDate = new Date(recordPaymentDate).toISOString().split('T')[0]
         return paymentDate === date && record.metadata.status === 'paid'
       })
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
     const mrrUpToDate = revenue
       .filter(record => {
-        const paymentDate = new Date(record.metadata.payment_date)
+        const recordPaymentDate = record.metadata.payment_date
+        if (!recordPaymentDate) return false
+        const paymentDate = new Date(recordPaymentDate)
         return paymentDate <= new Date(date) && record.metadata.status === 'paid'
       })
       .reduce((sum, record) => sum + record.metadata.amount, 0)
@@ -140,8 +162,8 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   })
 }
 
-// Generate activity data for charts
-export function generateActivityData(users: User[], sessions: UserSession[]): ActivityData[] {
+// Generate activity data for charts - FIXED: Handle both UserSession[] and User[] properly
+export function generateActivityData(sessions: UserSession[], users: User[]): ActivityData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
     date.setDate(date.getDate() - (29 - i))
@@ -150,12 +172,16 @@ export function generateActivityData(users: User[], sessions: UserSession[]): Ac
 
   return last30Days.map(date => {
     const loginsOnDate = sessions.filter(session => {
-      const loginDate = new Date(session.metadata.login_date).toISOString().split('T')[0]
+      const sessionLoginDate = session.metadata.login_date
+      if (!sessionLoginDate) return false
+      const loginDate = new Date(sessionLoginDate).toISOString().split('T')[0]
       return loginDate === date
     }).length
 
     const registrationsOnDate = users.filter(user => {
-      const signupDate = new Date(user.metadata.signup_date).toISOString().split('T')[0]
+      const userSignupDate = user.metadata.signup_date
+      if (!userSignupDate) return false
+      const signupDate = new Date(userSignupDate).toISOString().split('T')[0]
       return signupDate === date
     }).length
 
@@ -225,6 +251,36 @@ export function createActivityChart(data: ActivityData[]): ChartData {
         borderColor: '#06b6d4',
         backgroundColor: '#06b6d440',
         fill: true
+      }
+    ]
+  }
+}
+
+// FIXED: Added missing createHourlyActivityChart function
+export function createHourlyActivityChart(sessions: UserSession[]): ChartData {
+  // Create 24-hour data (0-23)
+  const hourlyData = Array.from({ length: 24 }, (_, hour) => {
+    const sessionsInHour = sessions.filter(session => {
+      const loginDate = session.metadata.login_date
+      if (!loginDate) return false
+      const sessionHour = new Date(loginDate).getHours()
+      return sessionHour === hour
+    }).length
+    
+    return sessionsInHour
+  })
+
+  const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`)
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'Sessions by Hour',
+        data: hourlyData,
+        backgroundColor: '#3b82f6',
+        borderColor: '#2563eb',
+        borderWidth: 1
       }
     ]
   }
