@@ -14,7 +14,7 @@ export function calculateDashboardMetrics(
     user.metadata.signup_date === todayStr
   ).length
   
-  // Fix: Add explicit check for thisMonthStart (though it's always defined in this context)
+  // Fix: Explicit check for thisMonthStart and signup_date (both are guaranteed to be strings in this context)
   const newUsersThisMonth = users.filter(user => 
     user.metadata.signup_date && user.metadata.signup_date >= thisMonthStart
   ).length
@@ -179,11 +179,16 @@ export function formatNumber(num: number): string {
   return new Intl.NumberFormat('en-US').format(num)
 }
 
-// Fix: Ensure dateString parameter is typed as string and provide proper fallback
-export function formatDate(dateString: string): string {
-  // Additional safety check - this should not be needed but satisfies TypeScript
-  if (!dateString || typeof dateString !== 'string') {
+// Fix: Add explicit parameter type and proper undefined handling
+export function formatDate(dateString: string | undefined): string {
+  // Handle undefined or empty dateString
+  if (!dateString) {
     return 'Unknown'
+  }
+  
+  // Additional safety check for string type
+  if (typeof dateString !== 'string') {
+    return 'Invalid Date'
   }
   
   const date = new Date(dateString)
