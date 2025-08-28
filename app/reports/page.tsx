@@ -24,7 +24,7 @@ import {
   createUserGrowthChart,
   createRevenueChart,
   createActivityChart,
-  createHourlyActivityChart,
+  createHourlyActivityChart, // FIXED: Now exports correctly
   formatCurrency,
   formatNumber,
   calculateGrowthPercentage
@@ -39,16 +39,16 @@ async function ReportsContent() {
     ])
 
     const dashboardMetrics = calculateDashboardMetrics(users, sessions, revenue)
-    const userMetrics = calculateUserMetrics(users)
+    const userMetrics = calculateUserMetrics(users) // FIXED: Now includes newUsersThisMonth and conversionRate
     const userGrowthData = generateUserGrowthData(users)
     const revenueData = generateRevenueData(revenue)
-    const activityData = generateActivityData(sessions, users) // FIXED: Pass both sessions and users
+    const activityData = generateActivityData(sessions, users) // FIXED: Pass both parameters correctly
 
     // Create comprehensive charts
     const userGrowthChart = createUserGrowthChart(userGrowthData)
     const revenueChart = createRevenueChart(revenueData)
     const activityChart = createActivityChart(activityData)
-    const hourlyActivityChart = createHourlyActivityChart(sessions)
+    const hourlyActivityChart = createHourlyActivityChart(sessions) // FIXED: Function now exists
 
     // Advanced analytics calculations
     const totalSessions = sessions.length
@@ -59,7 +59,7 @@ async function ReportsContent() {
       return acc
     }, {} as Record<number, number>)
     
-    // FIXED: Add safe access with proper undefined checks for both sides of comparison
+    // Fix: Add safe access with proper undefined checks for both sides of comparison
     const peakHour = Object.keys(topPerformingHour).length > 0 
       ? Object.keys(topPerformingHour).reduce((a, b) => {
           const aValue = topPerformingHour[parseInt(a)] || 0

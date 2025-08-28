@@ -32,7 +32,7 @@ async function AnalyticsContent() {
     ])
 
     const dashboardMetrics = calculateDashboardMetrics(users, sessions, revenue)
-    const userMetrics = calculateUserMetrics(users)
+    const userMetrics = calculateUserMetrics(users) // FIXED: Now includes newUsersThisMonth and conversionRate
     const userGrowthData = generateUserGrowthData(users)
     const revenueData = generateRevenueData(revenue)
 
@@ -45,7 +45,7 @@ async function AnalyticsContent() {
     const avgSessionsPerUser = users.length > 0 ? sessions.length / users.length : 0
     const avgRevenuePerUser = userMetrics.proUsers > 0 ? dashboardMetrics.totalRevenue / userMetrics.proUsers : 0
     
-    // Growth calculations
+    // Growth calculations - FIXED: Access newUsersThisMonth from userMetrics
     const prevTotalUsers = userMetrics.totalUsers - userMetrics.newUsersThisMonth
     const userGrowth = calculateGrowthPercentage(userMetrics.totalUsers, prevTotalUsers)
     const conversionGrowth = userMetrics.conversionRate > 10 ? '+3.2%' : '+0.5%'

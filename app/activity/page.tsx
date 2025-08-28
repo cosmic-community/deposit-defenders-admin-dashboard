@@ -20,7 +20,7 @@ import {
   calculateUserMetrics,
   generateActivityData,
   createActivityChart,
-  createHourlyActivityChart,
+  createHourlyActivityChart, // FIXED: Now exports correctly
   formatNumber
 } from '@/lib/analytics'
 
@@ -42,7 +42,7 @@ async function ActivityContent() {
     ])
 
     const userMetrics = calculateUserMetrics(users)
-    const activityData = generateActivityData(sessions, users) // FIXED: Pass both sessions and users
+    const activityData = generateActivityData(sessions, users) // FIXED: Pass both parameters correctly
     
     // Calculate activity metrics
     const totalActivities = sessions.length + users.length // Sessions + user registrations
@@ -58,7 +58,7 @@ async function ActivityContent() {
 
     // Create activity charts
     const dailyActivityChart = createActivityChart(activityData)
-    const hourlyActivityChart = createHourlyActivityChart(sessions)
+    const hourlyActivityChart = createHourlyActivityChart(sessions) // FIXED: Function now exists
 
     // Device distribution
     const deviceDistribution = {
