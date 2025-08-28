@@ -1,64 +1,100 @@
 import { User } from '@/types'
-import { Users, UserPlus, TrendingUp, CreditCard } from 'lucide-react'
+import { Users, UserPlus, Crown, Activity } from 'lucide-react'
+import { formatNumber, calculateGrowthPercentage } from '@/lib/analytics'
 
-interface UserStatsProps {
+export interface UserStatsProps {
   users: User[]
-  freeUsers: number
-  proUsers: number
-  conversionRate: number
 }
 
-export default function UserStats({ 
-  users, 
-  freeUsers, 
-  proUsers, 
-  conversionRate 
-}: UserStatsProps) {
+export default function UserStats({ users }: UserStatsProps) {
+  if (!users || users.length === 0) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-card rounded-lg border border-border p-6">
+            <div className="h-4 bg-accent rounded animate-pulse mb-2" />
+            <div className="h-8 bg-accent rounded animate-pulse mb-2" />
+            <div className="h-4 bg-accent rounded animate-pulse w-16" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   const totalUsers = users.length
-  const newUsersThisWeek = users.filter(user => {
+  const activeUsers = users.filter(user => user.metadata.status === 'active').length
+  const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
+  const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
+
+  // Calculate new users today
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const newUsersToday = users.filter(user => {
     const signupDate = new Date(user.metadata.signup_date)
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    return signupDate >= weekAgo
+    return signupDate >= today
   }).length
+
+  // Calculate growth (using mock previous data for demo)
+  const prevTotalUsers = Math.max(0, totalUsers - 10) // Mock previous count
+  const userGrowth = calculateGrowthPercentage(totalUsers, prevTotalUsers)
 
   const stats = [
     {
       title: 'Total Users',
-      value: totalUsers.toLocaleString(),
-      icon: <Users size={20} />,
-      color: 'text-blue-500'
+      value: formatNumber(totalUsers),
+      change: userGrowth,
+      trend: totalUsers > prevTotalUsers ? 'up' : 'neutral' as const,
+      icon: <Users size={24} />
     },
     {
-      title: 'New This Week',
-      value: newUsersThisWeek.toLocaleString(),
-      icon: <UserPlus size={20} />,
-      color: 'text-green-500'
-    },
-    {
-      title: 'Conversion Rate',
-      value: `${conversionRate.toFixed(1)}%`,
-      icon: <TrendingUp size={20} />,
-      color: 'text-purple-500'
+      title: 'Active Users',
+      value: formatNumber(activeUsers),
+      change: `${((activeUsers / totalUsers) * 100).toFixed(1)}% of total`,
+      trend: activeUsers > 0 ? 'up' : 'neutral' as const,
+      icon: <Activity size={24} />
     },
     {
       title: 'Pro Subscribers',
-      value: proUsers.toLocaleString(),
-      icon: <CreditCard size={20} />,
-      color: 'text-orange-500'
+      value: formatNumber(proUsers),
+      change: `${((proUsers / totalUsers) * 100).toFixed(1)}% conversion`,
+      trend: proUsers > 0 ? 'up' : 'neutral' as const,
+      icon: <Crown size={24} />
+    },
+    {
+      title: 'New Today',
+      value: formatNumber(newUsersToday),
+      change: `${formatNumber(freeUsers)} free users`,
+      trend: newUsersToday > 0 ? 'up' : 'neutral' as const,
+      icon: <UserPlus size={24} />
     }
   ]
 
+  const getTrendColor = (trend: 'up' | 'down' | 'neutral') => {
+    switch (trend) {
+      case 'up':
+        return 'text-green-500'
+      case 'down':
+        return 'text-red-500'
+      default:
+        return 'text-muted-foreground'
+    }
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat, index) => (
-        <div key={index} className="bg-card rounded-lg border p-4">
+        <div key={index} className="bg-card rounded-lg border border-border p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">{stat.title}</p>
-              <p className="text-2xl font-bold mt-1">{stat.value}</p>
+              <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{stat.value}</p>
+              {stat.change && (
+                <p className={`text-sm mt-2 ${getTrendColor(stat.trend)}`}>
+                  {stat.change}
+                </p>
+              )}
             </div>
-            <div className={stat.color}>
+            <div className="text-muted-foreground">
               {stat.icon}
             </div>
           </div>

@@ -1,109 +1,201 @@
+'use client'
+
 import { useState } from 'react'
 import { Save, AlertTriangle } from 'lucide-react'
+import { DashboardMetrics } from '@/types'
 
-interface UserMetrics {
-  totalUsers: number
-  activeUsers: number
-  freeUsers: number
-  proUsers: number
-}
-
-interface AdminSettingsProps {
-  userMetrics: UserMetrics
+export interface AdminSettingsProps {
+  userMetrics: DashboardMetrics
 }
 
 export default function AdminSettings({ userMetrics }: AdminSettingsProps) {
   const [settings, setSettings] = useState({
-    maxUsers: 10000,
-    enableRegistration: true,
     maintenanceMode: false,
-    backupFrequency: 'daily'
+    newUserRegistration: true,
+    emailNotifications: true,
+    analyticsTracking: true,
+    dataRetentionDays: 365,
+    maxUsersPerPlan: {
+      free: 1000,
+      pro: 10000
+    }
   })
 
-  const handleSave = () => {
-    // Save settings logic would go here
-    console.log('Saving admin settings:', settings)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log('Settings saved:', settings)
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleInputChange = (key: string, value: any) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: value
+    }))
+  }
+
+  const handleNestedInputChange = (parentKey: string, childKey: string, value: any) => {
+    setSettings(prev => ({
+      ...prev,
+      [parentKey]: {
+        ...prev[parentKey as keyof typeof prev],
+        [childKey]: value
+      }
+    }))
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-accent/50 rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Total Users</div>
-          <div className="text-2xl font-bold">{userMetrics.totalUsers}</div>
+      {/* System Status */}
+      <div className="flex items-center justify-between p-4 bg-accent/30 rounded-lg">
+        <div>
+          <h4 className="font-medium text-foreground">System Status</h4>
+          <p className="text-sm text-muted-foreground">
+            {userMetrics.totalUsers} total users • {userMetrics.activeUsers} active users
+          </p>
         </div>
-        <div className="bg-accent/50 rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Active Users</div>
-          <div className="text-2xl font-bold">{userMetrics.activeUsers}</div>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <span className="text-sm text-foreground">Operational</span>
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* Maintenance Mode */}
+      <div className="flex items-center justify-between">
         <div>
-          <label className="text-sm font-medium mb-2 block">
-            Maximum Users
-          </label>
-          <input
-            type="number"
-            value={settings.maxUsers}
-            onChange={(e) => setSettings(prev => ({ ...prev, maxUsers: parseInt(e.target.value) }))}
-            className="w-full px-3 py-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-ring"
+          <label className="text-sm font-medium text-foreground">Maintenance Mode</label>
+          <p className="text-xs text-muted-foreground">Temporarily disable access to the platform</p>
+        </div>
+        <button
+          onClick={() => handleInputChange('maintenanceMode', !settings.maintenanceMode)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            settings.maintenanceMode ? 'bg-primary' : 'bg-muted'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              settings.maintenanceMode ? 'translate-x-6' : 'translate-x-1'
+            }`}
           />
-        </div>
+        </button>
+      </div>
 
+      {settings.maintenanceMode && (
+        <div className="flex items-center gap-2 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+          <AlertTriangle className="w-4 h-4 text-orange-500" />
+          <span className="text-sm text-orange-700">
+            Maintenance mode is enabled. Users cannot access the platform.
+          </span>
+        </div>
+      )}
+
+      {/* User Registration */}
+      <div className="flex items-center justify-between">
         <div>
-          <label className="flex items-center gap-2">
+          <label className="text-sm font-medium text-foreground">New User Registration</label>
+          <p className="text-xs text-muted-foreground">Allow new users to sign up</p>
+        </div>
+        <button
+          onClick={() => handleInputChange('newUserRegistration', !settings.newUserRegistration)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            settings.newUserRegistration ? 'bg-primary' : 'bg-muted'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              settings.newUserRegistration ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Email Notifications */}
+      <div className="flex items-center justify-between">
+        <div>
+          <label className="text-sm font-medium text-foreground">Email Notifications</label>
+          <p className="text-xs text-muted-foreground">Send system emails to users</p>
+        </div>
+        <button
+          onClick={() => handleInputChange('emailNotifications', !settings.emailNotifications)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            settings.emailNotifications ? 'bg-primary' : 'bg-muted'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              settings.emailNotifications ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Data Retention */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Data Retention (days)
+        </label>
+        <input
+          type="number"
+          value={settings.dataRetentionDays}
+          onChange={(e) => handleInputChange('dataRetentionDays', parseInt(e.target.value))}
+          className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          min="30"
+          max="3650"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          How long to keep user data and analytics
+        </p>
+      </div>
+
+      {/* User Limits */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-foreground">
+          User Limits per Plan
+        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">Free Plan</label>
             <input
-              type="checkbox"
-              checked={settings.enableRegistration}
-              onChange={(e) => setSettings(prev => ({ ...prev, enableRegistration: e.target.checked }))}
-              className="rounded border-border"
+              type="number"
+              value={settings.maxUsersPerPlan.free}
+              onChange={(e) => handleNestedInputChange('maxUsersPerPlan', 'free', parseInt(e.target.value))}
+              className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              min="0"
             />
-            <span className="text-sm font-medium">Enable User Registration</span>
-          </label>
-        </div>
-
-        <div>
-          <label className="flex items-center gap-2">
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">Pro Plan</label>
             <input
-              type="checkbox"
-              checked={settings.maintenanceMode}
-              onChange={(e) => setSettings(prev => ({ ...prev, maintenanceMode: e.target.checked }))}
-              className="rounded border-border"
+              type="number"
+              value={settings.maxUsersPerPlan.pro}
+              onChange={(e) => handleNestedInputChange('maxUsersPerPlan', 'pro', parseInt(e.target.value))}
+              className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              min="0"
             />
-            <span className="text-sm font-medium">Maintenance Mode</span>
-          </label>
-          {settings.maintenanceMode && (
-            <div className="flex items-center gap-2 mt-2 text-sm text-amber-600">
-              <AlertTriangle size={16} />
-              <span>This will prevent new users from accessing the platform</span>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label className="text-sm font-medium mb-2 block">
-            Backup Frequency
-          </label>
-          <select
-            value={settings.backupFrequency}
-            onChange={(e) => setSettings(prev => ({ ...prev, backupFrequency: e.target.value }))}
-            className="w-full px-3 py-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-ring"
-          >
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
+          </div>
         </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        <Save size={16} />
-        Save Settings
-      </button>
+      {/* Save Button */}
+      <div className="pt-4">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <Save className="w-4 h-4" />
+          {isSaving ? 'Saving...' : 'Save Settings'}
+        </button>
+      </div>
     </div>
   )
 }

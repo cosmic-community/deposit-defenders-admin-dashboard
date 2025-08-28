@@ -2,8 +2,8 @@ import { User, UserSession, RevenueRecord, DashboardMetrics, UserGrowthData, Rev
 import { format, subDays, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns'
 
 // Ensure environment variables are strings with fallbacks
-const bucketSlug = process.env.COSMIC_BUCKET_SLUG || 'default-bucket'
-const readKey = process.env.COSMIC_READ_KEY || 'default-read-key'
+const bucketSlug: string = process.env.COSMIC_BUCKET_SLUG || 'default-bucket'
+const readKey: string = process.env.COSMIC_READ_KEY || 'default-read-key'
 
 // Initialize analytics configuration
 const config = {

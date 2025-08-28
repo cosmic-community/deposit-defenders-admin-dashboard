@@ -1,51 +1,60 @@
 import { UserSession } from '@/types'
-import { formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
 
-interface ActivityTableProps {
+export interface ActivityTableProps {
   sessions: UserSession[]
 }
 
 export default function ActivityTable({ sessions }: ActivityTableProps) {
   if (!sessions || sessions.length === 0) {
     return (
-      <div className="bg-card rounded-lg border p-6">
-        <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-        <div className="text-center py-8 text-muted-foreground">
-          No recent activity found
-        </div>
+      <div className="bg-card rounded-lg border border-border p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h3>
+        <p className="text-muted-foreground">No activity data available.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-card rounded-lg border p-6">
-      <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+    <div className="bg-card rounded-lg border border-border">
+      <div className="p-6 border-b border-border">
+        <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          Latest user sessions and login activity
+        </p>
+      </div>
+      
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">User</th>
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Action</th>
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Device</th>
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Time</th>
+          <thead className="bg-accent/50">
+            <tr>
+              <th className="text-left p-4 text-sm font-medium text-muted-foreground">User ID</th>
+              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Login Date</th>
+              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Device</th>
+              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Duration</th>
+              <th className="text-left p-4 text-sm font-medium text-muted-foreground">IP Address</th>
             </tr>
           </thead>
           <tbody>
-            {sessions.map((session) => (
-              <tr key={session.id} className="border-b border-border hover:bg-accent/50">
-                <td className="py-3 px-4">
-                  <div className="font-medium">{session.metadata.user_id}</div>
+            {sessions.slice(0, 10).map((session) => (
+              <tr key={session.id} className="border-b border-border hover:bg-accent/20">
+                <td className="p-4 text-sm text-foreground font-mono">
+                  {session.metadata.user_id.slice(0, 8)}...
                 </td>
-                <td className="py-3 px-4 text-muted-foreground">
-                  Login
+                <td className="p-4 text-sm text-foreground">
+                  {format(new Date(session.metadata.login_date), 'MMM dd, yyyy HH:mm')}
                 </td>
-                <td className="py-3 px-4">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent text-accent-foreground capitalize">
-                    {session.metadata.device_type}
-                  </span>
+                <td className="p-4 text-sm text-foreground capitalize">
+                  {session.metadata.device_type}
                 </td>
-                <td className="py-3 px-4 text-muted-foreground">
-                  {formatDistanceToNow(new Date(session.metadata.login_date), { addSuffix: true })}
+                <td className="p-4 text-sm text-foreground">
+                  {session.metadata.session_duration 
+                    ? `${Math.round(session.metadata.session_duration / 60)}m`
+                    : 'Active'
+                  }
+                </td>
+                <td className="p-4 text-sm text-muted-foreground font-mono">
+                  {session.metadata.ip_address || 'N/A'}
                 </td>
               </tr>
             ))}
