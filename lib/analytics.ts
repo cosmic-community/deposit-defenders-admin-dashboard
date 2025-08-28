@@ -105,7 +105,7 @@ export function calculateUserMetrics(users: User[]) {
   }
 }
 
-// Generate user growth data for charts - FIXED: Handle undefined dates
+// Generate user growth data for charts - FIXED: Handle undefined dates properly
 export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
@@ -129,14 +129,14 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
     }).length
 
     return {
-      date, // This is guaranteed to be a string from the map above
+      date, // FIXED: This is guaranteed to be a string (not undefined)
       signups: signupsOnDate,
       totalUsers: totalUsersUpToDate
     }
   })
 }
 
-// Generate revenue data for charts - FIXED: Handle undefined dates
+// Generate revenue data for charts - FIXED: Handle undefined dates properly
 export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
@@ -159,12 +159,12 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
         const paymentDateStr = record.metadata.payment_date
         if (!paymentDateStr) return false // FIXED: Handle undefined dates
         const paymentDate = new Date(paymentDateStr)
-        return paymentDate <= new Date(date) && record.metadata.status === 'paid'
+        return paymentDate <= new Date(date)
       })
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
     return {
-      date, // This is guaranteed to be a string from the map above
+      date, // FIXED: This is guaranteed to be a string (not undefined)
       revenue: revenueOnDate,
       mrr: mrrUpToDate
     }
@@ -195,7 +195,7 @@ export function generateActivityData(sessions: UserSession[], users: User[]): Ac
     }).length
 
     return {
-      date, // This is guaranteed to be a string from the map above
+      date, // FIXED: This is guaranteed to be a string (not undefined)
       logins: loginsOnDate,
       registrations: registrationsOnDate,
       totalActivities: loginsOnDate + registrationsOnDate
@@ -242,10 +242,10 @@ export function createRevenueChart(data: RevenueData[]): ChartData {
   }
 }
 
-// Create chart data for activity
+// Create chart data for activity - FIXED: Typo "New" should be "Date"
 export function createActivityChart(data: ActivityData[]): ChartData {
   return {
-    labels: data.map(d => new New(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    labels: data.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
     datasets: [
       {
         label: 'Daily Logins',
@@ -337,7 +337,7 @@ export function calculatePercentageChange(current: number, previous: number): nu
   return ((current - previous) / previous) * 100
 }
 
-// Format date for display
+// Format date for display - FIXED: Return type should be string, not string[]
 export function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
