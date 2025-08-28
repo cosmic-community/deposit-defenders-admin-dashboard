@@ -14,9 +14,9 @@ export function calculateDashboardMetrics(
     user.metadata.signup_date === todayStr
   ).length
   
-  // Fix: Explicit check for thisMonthStart and signup_date (both are guaranteed to be strings in this context)
+  // Fix: thisMonthStart is guaranteed to be a string, but add explicit check for signup_date
   const newUsersThisMonth = users.filter(user => 
-    user.metadata.signup_date && user.metadata.signup_date >= thisMonthStart
+    user.metadata.signup_date && user.metadata.signup_date >= thisMonthStart!
   ).length
   
   const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
@@ -179,18 +179,8 @@ export function formatNumber(num: number): string {
   return new Intl.NumberFormat('en-US').format(num)
 }
 
-// Fix: Add explicit parameter type and proper undefined handling
-export function formatDate(dateString: string | undefined): string {
-  // Handle undefined or empty dateString
-  if (!dateString) {
-    return 'Unknown'
-  }
-  
-  // Additional safety check for string type
-  if (typeof dateString !== 'string') {
-    return 'Invalid Date'
-  }
-  
+// Fix: Accept string parameter explicitly (not undefined) and handle the undefined case at call sites
+export function formatDate(dateString: string): string {
   const date = new Date(dateString)
   // Check if the date is valid
   if (isNaN(date.getTime())) {
