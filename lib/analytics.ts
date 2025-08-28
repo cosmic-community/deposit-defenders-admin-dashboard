@@ -14,8 +14,9 @@ export function calculateDashboardMetrics(
     user.metadata.signup_date === todayStr
   ).length
   
+  // Fix: Add explicit check for thisMonthStart (though it's always defined in this context)
   const newUsersThisMonth = users.filter(user => 
-    user.metadata.signup_date >= thisMonthStart
+    user.metadata.signup_date && user.metadata.signup_date >= thisMonthStart
   ).length
   
   const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
@@ -47,7 +48,9 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   
   users.forEach(user => {
     const date = user.metadata.signup_date
-    growthMap.set(date, (growthMap.get(date) || 0) + 1)
+    if (date) {
+      growthMap.set(date, (growthMap.get(date) || 0) + 1)
+    }
   })
   
   const sortedDates = Array.from(growthMap.keys()).sort()
@@ -73,7 +76,9 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   
   revenue.forEach(record => {
     const date = record.metadata.payment_date
-    revenueMap.set(date, (revenueMap.get(date) || 0) + record.metadata.amount)
+    if (date) {
+      revenueMap.set(date, (revenueMap.get(date) || 0) + record.metadata.amount)
+    }
   })
   
   const sortedDates = Array.from(revenueMap.keys()).sort()
@@ -149,7 +154,7 @@ export function createSubscriptionChart(freeUsers: number, proUsers: number): Ch
     labels: ['Free Users', 'Pro Users'],
     datasets: [
       {
-        label: 'Subscription Distribution', // Added missing label property
+        label: 'Subscription Distribution',
         data: [freeUsers, proUsers],
         backgroundColor: [
           'rgba(107, 114, 128, 0.8)',
@@ -174,13 +179,19 @@ export function formatNumber(num: number): string {
   return new Intl.NumberFormat('en-US').format(num)
 }
 
+// Fix: Ensure dateString parameter is typed as string and provide proper fallback
 export function formatDate(dateString: string): string {
-  // Handle potentially undefined dateString
-  if (!dateString) {
+  // Additional safety check - this should not be needed but satisfies TypeScript
+  if (!dateString || typeof dateString !== 'string') {
     return 'Unknown'
   }
   
   const date = new Date(dateString)
+  // Check if the date is valid
+  if (isNaN(date.getTime())) {
+    return 'Invalid Date'
+  }
+  
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric'
@@ -215,7 +226,7 @@ export function filterByDateRange<T extends { metadata: { [key: string]: any } }
 ): T[] {
   return data.filter(item => {
     const itemDate = item.metadata[dateField]
-    return itemDate >= startDate && itemDate <= endDate
+    return itemDate && itemDate >= startDate && itemDate <= endDate
   })
 }
 
