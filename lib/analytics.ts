@@ -1,5 +1,17 @@
 import { User, UserSession, RevenueRecord, DashboardMetrics, UserGrowthData, RevenueData, ActivityData, ChartData } from '@/types'
 
+// Ensure environment variables are defined with proper typing
+const bucketSlug = process.env.COSMIC_BUCKET_SLUG
+const readKey = process.env.COSMIC_READ_KEY
+
+if (!bucketSlug) {
+  throw new Error('COSMIC_BUCKET_SLUG environment variable is required')
+}
+
+if (!readKey) {
+  throw new Error('COSMIC_READ_KEY environment variable is required')
+}
+
 // Helper function to format dates consistently
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0]
@@ -16,6 +28,29 @@ function getDateString(dateInput: string | Date | undefined): string {
   }
   
   return formatDate(dateInput)
+}
+
+// Calculate user-specific metrics (exported function that was missing)
+export function calculateUserMetrics(users: User[]): {
+  totalUsers: number;
+  activeUsers: number;
+  freeUsers: number;
+  proUsers: number;
+  conversionRate: number;
+} {
+  const totalUsers = users.length
+  const activeUsers = users.filter(user => user.metadata.status === 'active').length
+  const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
+  const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
+  const conversionRate = totalUsers > 0 ? (proUsers / totalUsers) * 100 : 0
+
+  return {
+    totalUsers,
+    activeUsers,
+    freeUsers,
+    proUsers,
+    conversionRate
+  }
 }
 
 // Calculate key dashboard metrics from raw data
@@ -238,7 +273,7 @@ export function createRevenueChart(data: RevenueData[]): ChartData {
   }
 }
 
-// Create activity chart data
+// Create activity chart data (renamed from createHourlyActivityChart to createActivityChart)
 export function createActivityChart(data: ActivityData[]): ChartData {
   return {
     labels: data.map(d => {
@@ -259,6 +294,33 @@ export function createActivityChart(data: ActivityData[]): ChartData {
         data: data.map(d => d.registrations),
         borderColor: '#f43f5e',
         backgroundColor: 'rgba(244, 63, 94, 0.1)',
+        borderWidth: 2,
+        fill: true
+      }
+    ]
+  }
+}
+
+// Create hourly activity chart (the function name that was expected)
+export function createHourlyActivityChart(sessions: UserSession[]): ChartData {
+  // Generate hourly activity data for the last 24 hours
+  const hourlyData = Array.from({ length: 24 }, (_, hour) => {
+    const activityCount = sessions.filter(session => {
+      const loginDate = new Date(session.metadata.login_date || session.created_at)
+      return loginDate.getHours() === hour
+    }).length
+    
+    return activityCount
+  })
+
+  return {
+    labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+    datasets: [
+      {
+        label: 'Hourly Activity',
+        data: hourlyData,
+        borderColor: '#06b6d4',
+        backgroundColor: 'rgba(6, 182, 212, 0.1)',
         borderWidth: 2,
         fill: true
       }
