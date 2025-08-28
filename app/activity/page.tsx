@@ -24,6 +24,16 @@ import {
   formatNumber
 } from '@/lib/analytics'
 
+// Define the ActivityRecord interface to match the component
+interface ActivityRecord {
+  id: string
+  type: 'login' | 'registration' | 'subscription' | 'payment'
+  user_email: string
+  timestamp: string
+  details: string
+  ip_address?: string | null
+}
+
 async function ActivityContent() {
   try {
     const [users, sessions] = await Promise.all([
@@ -93,19 +103,19 @@ async function ActivityContent() {
       }]
     }
 
-    // Generate recent activity feed
-    const recentActivities = [
+    // Generate recent activity feed with properly typed activity records
+    const recentActivities: ActivityRecord[] = [
       ...sessions.slice(0, 10).map(session => ({
         id: session.id,
-        type: 'login',
+        type: 'login' as const,
         user_email: users.find(u => u.id === session.metadata?.user_id)?.metadata?.email || 'Unknown User',
         timestamp: session.metadata?.login_date || session.created_at,
         details: `Logged in from ${session.metadata?.device_type || 'unknown'} device`,
-        ip_address: session.metadata?.ip_address
+        ip_address: session.metadata?.ip_address || null
       })),
       ...users.slice(0, 5).map(user => ({
         id: user.id,
-        type: 'registration',
+        type: 'registration' as const,
         user_email: user.metadata?.email || 'Unknown',
         timestamp: user.metadata?.signup_date || user.created_at,
         details: `Signed up for ${user.metadata?.subscription_plan || 'free'} plan`,
