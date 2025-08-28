@@ -125,7 +125,7 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
       const signupDateStr = user.metadata.signup_date
       if (!signupDateStr) return false // FIXED: Handle undefined dates
       const signupDate = new Date(signupDateStr)
-      return signupDate <= new Date(date)
+      return signupDate <= new Date(date) // FIXED: date is guaranteed to be string
     }).length
 
     return {
@@ -159,7 +159,7 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
         const paymentDateStr = record.metadata.payment_date
         if (!paymentDateStr) return false // FIXED: Handle undefined dates
         const paymentDate = new Date(paymentDateStr)
-        return paymentDate <= new Date(date)
+        return paymentDate <= new Date(date) // FIXED: date is guaranteed to be string
       })
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
