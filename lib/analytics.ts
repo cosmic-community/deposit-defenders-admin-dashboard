@@ -211,9 +211,13 @@ export function getDateRange(days: number): { start: string; end: string } {
   const start = new Date()
   start.setDate(start.getDate() - days)
   
+  // Fix: Ensure we return defined strings by handling null cases
+  const startDate = start.toISOString().split('T')[0]
+  const endDate = end.toISOString().split('T')[0]
+  
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0]
+    start: startDate || '',
+    end: endDate || ''
   }
 }
 
