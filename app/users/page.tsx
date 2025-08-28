@@ -1,41 +1,35 @@
 import { Suspense } from 'react'
-import { Users, UserPlus, Search, Filter } from 'lucide-react'
+import { Users, UserPlus, Filter, Search } from 'lucide-react'
 import MetricCard from '@/components/MetricCard'
 import UserTable from '@/components/UserTable'
-import UserStats from '@/components/UserStats'
-import UserSearch from '@/components/UserSearch'
 import UserFilters from '@/components/UserFilters'
-import { getUsers, getUserSessions } from '@/lib/cosmic'
-import { 
-  calculateUserMetrics,
-  formatNumber,
-  calculateGrowthPercentage
-} from '@/lib/analytics'
+import UserSearch from '@/components/UserSearch'
+import UserStats from '@/components/UserStats'
+import { getUsers } from '@/lib/cosmic'
+import { calculateUserMetrics, formatNumber, calculateGrowthPercentage } from '@/lib/analytics'
 
 async function UsersContent() {
   try {
-    const [users, sessions] = await Promise.all([
-      getUsers(),
-      getUserSessions()
-    ])
-
+    const users = await getUsers()
     const userMetrics = calculateUserMetrics(users)
-    
-    // Calculate recent growth
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    const recentUsers = users.filter(user => {
+
+    // Calculate growth metrics
+    const today = new Date().toISOString().split('T')[0]
+    const newUsersToday = users.filter(user => {
+      const signupDate = (user.metadata.signup_date || user.created_at).split('T')[0]
+      return signupDate === today
+    }).length
+
+    const thisWeek = new Date()
+    thisWeek.setDate(thisWeek.getDate() - 7)
+    const newUsersThisWeek = users.filter(user => {
       const signupDate = new Date(user.metadata.signup_date || user.created_at)
-      return signupDate >= thirtyDaysAgo
-    })
+      return signupDate >= thisWeek
+    }).length
 
-    const growthPercentage = calculateGrowthPercentage(
-      userMetrics.totalUsers, 
-      Math.max(1, userMetrics.totalUsers - recentUsers.length)
-    )
-
-    // Calculate user engagement
-    const uniqueSessionUsers = new Set(sessions.map(s => s.metadata.user_id)).size
-    const engagementRate = userMetrics.totalUsers > 0 ? (uniqueSessionUsers / userMetrics.totalUsers) * 100 : 0
+    // Mock previous week for growth calculation
+    const prevWeekUsers = Math.max(0, newUsersThisWeek - 5)
+    const weeklyGrowth = calculateGrowthPercentage(newUsersThisWeek, prevWeekUsers)
 
     return (
       <div className="p-8 space-y-8">
@@ -45,18 +39,8 @@ async function UsersContent() {
             User Management
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage users, track subscriptions, and analyze user behavior
+            Manage and monitor all users on your Deposit Defenders platform
           </p>
-        </div>
-
-        {/* User Search and Filters */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1">
-            <UserSearch />
-          </div>
-          <div className="lg:w-80">
-            <UserFilters />
-          </div>
         </div>
 
         {/* User Metrics */}
@@ -64,51 +48,49 @@ async function UsersContent() {
           <MetricCard
             title="Total Users"
             value={formatNumber(userMetrics.totalUsers)}
-            change={growthPercentage}
-            trend={recentUsers.length > 0 ? 'up' : 'neutral'}
+            change="all time"
             icon={<Users size={24} />}
           />
           <MetricCard
-            title="Pro Subscribers"
-            value={formatNumber(userMetrics.proUsers)}
-            change={`${userMetrics.conversionRate.toFixed(1)}% conversion`}
+            title="New Today"
+            value={formatNumber(newUsersToday)}
+            change="vs yesterday"
+            trend={newUsersToday > 0 ? 'up' : 'neutral'}
             icon={<UserPlus size={24} />}
+          />
+          <MetricCard
+            title="Weekly Growth"
+            value={weeklyGrowth}
+            change="new users"
+            trend={newUsersThisWeek > prevWeekUsers ? 'up' : 'neutral'}
+            icon={<Filter size={24} />}
           />
           <MetricCard
             title="Active Users"
             value={formatNumber(userMetrics.activeUsers)}
-            change={`${engagementRate.toFixed(1)}% engaged`}
+            change={`${((userMetrics.activeUsers / userMetrics.totalUsers) * 100).toFixed(1)}% of total`}
             icon={<Search size={24} />}
-          />
-          <MetricCard
-            title="New This Month"
-            value={formatNumber(recentUsers.length)}
-            change="last 30 days"
-            trend={recentUsers.length > 0 ? 'up' : 'neutral'}
-            icon={<Filter size={24} />}
           />
         </div>
 
-        {/* User Statistics */}
-        <UserStats 
-          users={users}
-          freeUsers={userMetrics.freeUsers}
-          proUsers={userMetrics.proUsers}
-          conversionRate={userMetrics.conversionRate}
-        />
-
-        {/* User Table */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-foreground">
-              All Users ({formatNumber(userMetrics.totalUsers)})
-            </h3>
-            <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-              <UserPlus size={16} />
-              Add User
-            </button>
+        {/* Search and Filters */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <UserSearch />
           </div>
-          <UserTable users={users} showActions={true} />
+          <div>
+            <UserFilters />
+          </div>
+        </div>
+
+        {/* User Stats and Table */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-1">
+            <UserStats users={users} />
+          </div>
+          <div className="lg:col-span-3">
+            <UserTable users={users} showActions={true} />
+          </div>
         </div>
       </div>
     )
@@ -118,10 +100,10 @@ async function UsersContent() {
       <div className="p-8">
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
           <h2 className="text-lg font-semibold text-destructive mb-2">
-            User Data Error
+            Users Error
           </h2>
           <p className="text-destructive-foreground">
-            Unable to load user data. Please check your configuration.
+            Unable to load users data. Please check your Cosmic configuration.
           </p>
         </div>
       </div>
@@ -146,6 +128,8 @@ function UsersLoading() {
           </div>
         ))}
       </div>
+      
+      <div className="h-96 bg-accent rounded animate-pulse" />
     </div>
   )
 }

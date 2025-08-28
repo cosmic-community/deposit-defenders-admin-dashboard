@@ -1,15 +1,15 @@
 import { User, UserSession, RevenueRecord, DashboardMetrics, UserGrowthData, RevenueData, ActivityData, ChartData } from '@/types'
 
-// Ensure environment variables are defined with proper typing
-const bucketSlug = process.env.COSMIC_BUCKET_SLUG
-const readKey = process.env.COSMIC_READ_KEY
+// Ensure environment variables are defined with proper typing and fallbacks
+const bucketSlug: string = process.env.COSMIC_BUCKET_SLUG || ''
+const readKey: string = process.env.COSMIC_READ_KEY || ''
 
 if (!bucketSlug) {
-  throw new Error('COSMIC_BUCKET_SLUG environment variable is required')
+  console.warn('COSMIC_BUCKET_SLUG environment variable is not set')
 }
 
 if (!readKey) {
-  throw new Error('COSMIC_READ_KEY environment variable is required')
+  console.warn('COSMIC_READ_KEY environment variable is not set')
 }
 
 // Helper function to format dates consistently
