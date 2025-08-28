@@ -1,104 +1,70 @@
-import { User, UserSession, RevenueRecord, DashboardMetrics, UserGrowthData, RevenueData, ActivityData, ChartData } from '@/types'
+import { User, UserSession, RevenueRecord, DashboardMetrics, UserGrowthData, RevenueData, ChartData } from '@/types'
+import { format, subDays, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns'
 
-// Ensure environment variables are defined with proper typing and fallbacks
-const bucketSlug: string = process.env.COSMIC_BUCKET_SLUG || ''
-const readKey: string = process.env.COSMIC_READ_KEY || ''
+// Ensure environment variables are strings with fallbacks
+const bucketSlug = process.env.COSMIC_BUCKET_SLUG || 'default-bucket'
+const readKey = process.env.COSMIC_READ_KEY || 'default-read-key'
 
-if (!bucketSlug) {
-  console.warn('COSMIC_BUCKET_SLUG environment variable is not set')
+// Initialize analytics configuration
+const config = {
+  bucketSlug,
+  readKey,
+  trackingEnabled: true,
+  sessionTimeout: 30 * 60 * 1000, // 30 minutes
 }
 
-if (!readKey) {
-  console.warn('COSMIC_READ_KEY environment variable is not set')
-}
-
-// Helper function to format dates consistently
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]
-}
-
-// Helper function to get date string, with fallback
-function getDateString(dateInput: string | Date | undefined): string {
-  if (!dateInput) {
-    return formatDate(new Date())
-  }
-  
-  if (typeof dateInput === 'string') {
-    return dateInput.split('T')[0] // Extract date part from ISO string
-  }
-  
-  return formatDate(dateInput)
-}
-
-// Calculate user-specific metrics (exported function that was missing)
-export function calculateUserMetrics(users: User[]): {
-  totalUsers: number;
-  activeUsers: number;
-  freeUsers: number;
-  proUsers: number;
-  conversionRate: number;
-} {
-  const totalUsers = users.length
-  const activeUsers = users.filter(user => user.metadata.status === 'active').length
-  const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
-  const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
-  const conversionRate = totalUsers > 0 ? (proUsers / totalUsers) * 100 : 0
-
-  return {
-    totalUsers,
-    activeUsers,
-    freeUsers,
-    proUsers,
-    conversionRate
-  }
-}
-
-// Calculate key dashboard metrics from raw data
+// Calculate comprehensive dashboard metrics
 export function calculateDashboardMetrics(
-  users: User[],
-  sessions: UserSession[],
+  users: User[], 
+  sessions: UserSession[], 
   revenue: RevenueRecord[]
 ): DashboardMetrics {
-  const now = new Date()
-  const today = formatDate(now)
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-  
-  // User metrics
   const totalUsers = users.length
+  const today = startOfDay(new Date())
+  const thisMonth = new Date()
+  thisMonth.setDate(1)
+  thisMonth.setHours(0, 0, 0, 0)
+
+  // Calculate user metrics
   const newUsersToday = users.filter(user => {
-    const signupDate = getDateString(user.metadata.signup_date)
-    return signupDate === today
+    const signupDate = new Date(user.metadata.signup_date)
+    return isAfter(signupDate, today) || 
+           (signupDate.toDateString() === today.toDateString())
   }).length
-  
+
   const newUsersThisMonth = users.filter(user => {
-    const signupDate = new Date(user.metadata.signup_date || user.created_at)
-    return signupDate >= thirtyDaysAgo
+    const signupDate = new Date(user.metadata.signup_date)
+    return isAfter(signupDate, thisMonth)
   }).length
-  
-  // Subscription metrics
+
   const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
   const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
   const conversionRate = totalUsers > 0 ? (proUsers / totalUsers) * 100 : 0
-  
-  // Revenue metrics
-  const totalRevenue = revenue
-    .filter(record => record.metadata.status === 'paid')
-    .reduce((sum, record) => sum + record.metadata.amount, 0)
-  
-  const monthlyRevenue = revenue
-    .filter(record => {
-      const paymentDate = new Date(record.metadata.payment_date || record.created_at)
-      return record.metadata.status === 'paid' && paymentDate >= thirtyDaysAgo
-    })
-    .reduce((sum, record) => sum + record.metadata.amount, 0)
-  
-  // Assuming pro plan is $5/month for MRR calculation
-  const monthlyRecurringRevenue = proUsers * 5
-  
-  // Activity metrics
+
+  // Calculate revenue metrics
+  const totalRevenue = revenue.reduce((sum, record) => {
+    return record.metadata.status === 'paid' ? sum + record.metadata.amount : sum
+  }, 0)
+
+  const monthlyRevenue = revenue.filter(record => {
+    const paymentDate = new Date(record.metadata.payment_date)
+    return isAfter(paymentDate, thisMonth) && record.metadata.status === 'paid'
+  })
+
+  const monthlyRecurringRevenue = monthlyRevenue.reduce((sum, record) => {
+    return sum + record.metadata.amount
+  }, 0)
+
+  // Calculate activity metrics
+  const activeUsers = users.filter(user => {
+    if (!user.metadata.last_login) return false
+    const lastLogin = new Date(user.metadata.last_login)
+    const weekAgo = subDays(new Date(), 7)
+    return isAfter(lastLogin, weekAgo)
+  }).length
+
   const totalLogins = sessions.length
-  const activeUsers = new Set(sessions.map(session => session.metadata.user_id)).size
-  
+
   return {
     totalUsers,
     newUsersToday,
@@ -113,122 +79,79 @@ export function calculateDashboardMetrics(
   }
 }
 
-// Generate user growth data for charts (last 30 days)
+// Generate user growth data for charts
 export function generateUserGrowthData(users: User[]): UserGrowthData[] {
-  const data: UserGrowthData[] = []
-  const now = new Date()
-  
-  // Generate data for last 30 days
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-    const dateString = formatDate(date)
+  const last30Days = Array.from({ length: 30 }, (_, i) => {
+    const date = subDays(new Date(), 29 - i)
+    return {
+      date: format(date, 'MMM dd'),
+      signups: 0,
+      totalUsers: 0
+    }
+  })
+
+  users.forEach(user => {
+    const signupDate = new Date(user.metadata.signup_date)
     
-    // Count signups on this date
-    const signupsOnDate = users.filter(user => {
-      const signupDate = getDateString(user.metadata.signup_date)
-      return signupDate === dateString
-    }).length
-    
-    // Count total users up to this date
-    const totalUsersUpToDate = users.filter(user => {
-      const signupDate = getDateString(user.metadata.signup_date)
-      return signupDate <= dateString
-    }).length
-    
-    data.push({
-      date: dateString,
-      signups: signupsOnDate,
-      totalUsers: totalUsersUpToDate
+    last30Days.forEach((day, index) => {
+      const dayDate = subDays(new Date(), 29 - index)
+      
+      // Count signups for this specific day
+      if (signupDate.toDateString() === dayDate.toDateString()) {
+        day.signups += 1
+      }
+      
+      // Count total users up to this day
+      if (isBefore(signupDate, endOfDay(dayDate)) || 
+          signupDate.toDateString() === dayDate.toDateString()) {
+        day.totalUsers += 1
+      }
     })
-  }
-  
-  return data
+  })
+
+  return last30Days
 }
 
-// Generate revenue data for charts (last 30 days)
+// Generate revenue data for charts
 export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
-  const data: RevenueData[] = []
-  const now = new Date()
-  
-  // Generate data for last 30 days
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-    const dateString = formatDate(date)
+  const last30Days = Array.from({ length: 30 }, (_, i) => {
+    const date = subDays(new Date(), 29 - i)
+    return {
+      date: format(date, 'MMM dd'),
+      revenue: 0,
+      mrr: 0
+    }
+  })
+
+  revenue.forEach(record => {
+    if (record.metadata.status !== 'paid') return
     
-    // Calculate revenue for this date
-    const dailyRevenue = revenue
-      .filter(record => {
-        const paymentDate = getDateString(record.metadata.payment_date)
-        return record.metadata.status === 'paid' && paymentDate === dateString
-      })
-      .reduce((sum, record) => sum + record.metadata.amount, 0)
+    const paymentDate = new Date(record.metadata.payment_date)
     
-    // Calculate running MRR (simplified - assumes $5 per active subscription)
-    const totalPaidCustomers = revenue
-      .filter(record => {
-        const paymentDate = getDateString(record.metadata.payment_date)
-        return record.metadata.status === 'paid' && paymentDate <= dateString
-      })
-      .length
-    
-    const mrr = totalPaidCustomers * 5 // $5 per pro user
-    
-    data.push({
-      date: dateString,
-      revenue: dailyRevenue,
-      mrr: mrr
+    last30Days.forEach((day, index) => {
+      const dayDate = subDays(new Date(), 29 - index)
+      
+      if (paymentDate.toDateString() === dayDate.toDateString()) {
+        day.revenue += record.metadata.amount
+        if (record.metadata.subscription_plan === 'pro') {
+          day.mrr += record.metadata.amount
+        }
+      }
     })
-  }
-  
-  return data
+  })
+
+  return last30Days
 }
 
-// Generate activity data for analytics (last 30 days)
-export function generateActivityData(users: User[], sessions: UserSession[]): ActivityData[] {
-  const data: ActivityData[] = []
-  const now = new Date()
-  
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-    const dateString = formatDate(date)
-    
-    // Count logins on this date
-    const loginsOnDate = sessions.filter(session => {
-      const loginDate = getDateString(session.metadata.login_date)
-      return loginDate === dateString
-    }).length
-    
-    // Count registrations on this date
-    const registrationsOnDate = users.filter(user => {
-      const signupDate = getDateString(user.metadata.signup_date)
-      return signupDate === dateString
-    }).length
-    
-    const totalActivities = loginsOnDate + registrationsOnDate
-    
-    data.push({
-      date: dateString,
-      logins: loginsOnDate,
-      registrations: registrationsOnDate,
-      totalActivities
-    })
-  }
-  
-  return data
-}
-
-// Create user growth chart data
+// Create chart data for user growth
 export function createUserGrowthChart(data: UserGrowthData[]): ChartData {
   return {
-    labels: data.map(d => {
-      const date = new Date(d.date)
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }),
+    labels: data.map(d => d.date),
     datasets: [
       {
-        label: 'Daily Signups',
+        label: 'New Signups',
         data: data.map(d => d.signups),
-        borderColor: '#3b82f6',
+        borderColor: '#3B82F6',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         borderWidth: 2,
         fill: true
@@ -236,7 +159,7 @@ export function createUserGrowthChart(data: UserGrowthData[]): ChartData {
       {
         label: 'Total Users',
         data: data.map(d => d.totalUsers),
-        borderColor: '#10b981',
+        borderColor: '#10B981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         borderWidth: 2,
         fill: false
@@ -245,84 +168,26 @@ export function createUserGrowthChart(data: UserGrowthData[]): ChartData {
   }
 }
 
-// Create revenue chart data
+// Create chart data for revenue
 export function createRevenueChart(data: RevenueData[]): ChartData {
   return {
-    labels: data.map(d => {
-      const date = new Date(d.date)
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }),
+    labels: data.map(d => d.date),
     datasets: [
       {
         label: 'Daily Revenue',
         data: data.map(d => d.revenue),
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        borderColor: '#8B5CF6',
+        backgroundColor: 'rgba(139, 92, 246, 0.1)',
         borderWidth: 2,
         fill: true
       },
       {
         label: 'MRR',
         data: data.map(d => d.mrr),
-        borderColor: '#8b5cf6',
-        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        borderColor: '#F59E0B',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
         borderWidth: 2,
         fill: false
-      }
-    ]
-  }
-}
-
-// Create activity chart data (renamed from createHourlyActivityChart to createActivityChart)
-export function createActivityChart(data: ActivityData[]): ChartData {
-  return {
-    labels: data.map(d => {
-      const date = new Date(d.date)
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }),
-    datasets: [
-      {
-        label: 'Logins',
-        data: data.map(d => d.logins),
-        borderColor: '#06b6d4',
-        backgroundColor: 'rgba(6, 182, 212, 0.1)',
-        borderWidth: 2,
-        fill: true
-      },
-      {
-        label: 'New Registrations',
-        data: data.map(d => d.registrations),
-        borderColor: '#f43f5e',
-        backgroundColor: 'rgba(244, 63, 94, 0.1)',
-        borderWidth: 2,
-        fill: true
-      }
-    ]
-  }
-}
-
-// Create hourly activity chart (the function name that was expected)
-export function createHourlyActivityChart(sessions: UserSession[]): ChartData {
-  // Generate hourly activity data for the last 24 hours
-  const hourlyData = Array.from({ length: 24 }, (_, hour) => {
-    const activityCount = sessions.filter(session => {
-      const loginDate = new Date(session.metadata.login_date || session.created_at)
-      return loginDate.getHours() === hour
-    }).length
-    
-    return activityCount
-  })
-
-  return {
-    labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
-    datasets: [
-      {
-        label: 'Hourly Activity',
-        data: hourlyData,
-        borderColor: '#06b6d4',
-        backgroundColor: 'rgba(6, 182, 212, 0.1)',
-        borderWidth: 2,
-        fill: true
       }
     ]
   }
@@ -335,15 +200,14 @@ export function createSubscriptionChart(freeUsers: number, proUsers: number): Ch
     datasets: [
       {
         data: [freeUsers, proUsers],
-        backgroundColor: ['#94a3b8', '#3b82f6'],
-        borderColor: ['#64748b', '#2563eb'],
-        borderWidth: 1
+        backgroundColor: ['#94A3B8', '#3B82F6'],
+        borderWidth: 0
       }
     ]
   }
 }
 
-// Utility functions for formatting
+// Utility functions
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -357,131 +221,75 @@ export function formatNumber(num: number): string {
 
 export function calculateGrowthPercentage(current: number, previous: number): string {
   if (previous === 0) return current > 0 ? '+100%' : '0%'
+  
   const growth = ((current - previous) / previous) * 100
-  const sign = growth > 0 ? '+' : ''
+  const sign = growth >= 0 ? '+' : ''
   return `${sign}${growth.toFixed(1)}%`
 }
 
-// Generate mock data for development/testing
-export function generateMockUserGrowthData(): UserGrowthData[] {
-  const data: UserGrowthData[] = []
-  const now = new Date()
+// Analytics tracking functions
+export function trackUserAction(userId: string, action: string, metadata?: Record<string, any>): void {
+  if (!config.trackingEnabled) return
   
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-    const dateString = formatDate(date)
-    
-    // Generate mock data with some randomness
-    const signups = Math.floor(Math.random() * 20) + 5
-    const totalUsers = (30 - i) * 15 + Math.floor(Math.random() * 50)
-    
-    data.push({
-      date: dateString,
-      signups,
-      totalUsers
-    })
-  }
-  
-  return data
+  console.log(`User ${userId} performed action: ${action}`, metadata)
+  // In a real implementation, this would send data to an analytics service
 }
 
-export function generateMockRevenueData(): RevenueData[] {
-  const data: RevenueData[] = []
-  const now = new Date()
+export function trackPageView(path: string, userId?: string): void {
+  if (!config.trackingEnabled) return
   
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-    const dateString = formatDate(date)
-    
-    // Generate mock revenue data
-    const revenue = Math.floor(Math.random() * 500) + 100
-    const mrr = (30 - i) * 25 + Math.floor(Math.random() * 200)
-    
-    data.push({
-      date: dateString,
-      revenue,
-      mrr
-    })
-  }
-  
-  return data
+  console.log(`Page view: ${path}`, { userId, timestamp: new Date().toISOString() })
+  // In a real implementation, this would send data to an analytics service
 }
 
-// Aggregate user data by time periods
-export function aggregateUsersByPeriod(users: User[], period: 'day' | 'week' | 'month' = 'day'): Record<string, number> {
-  const aggregation: Record<string, number> = {}
-  
-  users.forEach(user => {
-    const signupDate = new Date(user.metadata.signup_date || user.created_at)
-    let key: string
-    
-    switch (period) {
-      case 'week':
-        // Get the start of the week (Sunday)
-        const weekStart = new Date(signupDate)
-        weekStart.setDate(signupDate.getDate() - signupDate.getDay())
-        key = formatDate(weekStart)
-        break
-      case 'month':
-        key = `${signupDate.getFullYear()}-${String(signupDate.getMonth() + 1).padStart(2, '0')}`
-        break
-      default:
-        key = formatDate(signupDate)
-    }
-    
-    aggregation[key] = (aggregation[key] || 0) + 1
+// Session management
+export function createSessionId(): string {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15)
+}
+
+export function isSessionActive(lastActivity: string): boolean {
+  const lastActivityDate = new Date(lastActivity)
+  const now = new Date()
+  return (now.getTime() - lastActivityDate.getTime()) < config.sessionTimeout
+}
+
+// Date range utilities for filtering
+export function getDateRange(range: 'today' | 'week' | 'month' | 'year'): { start: Date; end: Date } {
+  const end = new Date()
+  let start: Date
+
+  switch (range) {
+    case 'today':
+      start = startOfDay(new Date())
+      break
+    case 'week':
+      start = subDays(new Date(), 7)
+      break
+    case 'month':
+      start = subDays(new Date(), 30)
+      break
+    case 'year':
+      start = subDays(new Date(), 365)
+      break
+    default:
+      start = subDays(new Date(), 30)
+  }
+
+  return { start, end }
+}
+
+// Filter functions for analytics
+export function filterUsersByDateRange(users: User[], dateRange: { start: Date; end: Date }): User[] {
+  return users.filter(user => {
+    const signupDate = new Date(user.metadata.signup_date)
+    return isAfter(signupDate, dateRange.start) && isBefore(signupDate, dateRange.end)
   })
-  
-  return aggregation
 }
 
-// Get top performing metrics for dashboard highlights
-export function getTopMetrics(users: User[], revenue: RevenueRecord[]): {
-  topRevenueDay: { date: string; amount: number }
-  topSignupDay: { date: string; signups: number }
-  averageDailySignups: number
-  averageDailyRevenue: number
-} {
-  // Aggregate revenue by day
-  const revenueByDay: Record<string, number> = {}
-  revenue
-    .filter(record => record.metadata.status === 'paid')
-    .forEach(record => {
-      const date = getDateString(record.metadata.payment_date)
-      revenueByDay[date] = (revenueByDay[date] || 0) + record.metadata.amount
-    })
-  
-  // Find top revenue day
-  const topRevenueEntry = Object.entries(revenueByDay)
-    .sort(([,a], [,b]) => b - a)[0]
-  
-  const topRevenueDay = topRevenueEntry 
-    ? { date: topRevenueEntry[0], amount: topRevenueEntry[1] }
-    : { date: formatDate(new Date()), amount: 0 }
-  
-  // Aggregate signups by day
-  const signupsByDay = aggregateUsersByPeriod(users, 'day')
-  
-  // Find top signup day
-  const topSignupEntry = Object.entries(signupsByDay)
-    .sort(([,a], [,b]) => b - a)[0]
-  
-  const topSignupDay = topSignupEntry
-    ? { date: topSignupEntry[0], signups: topSignupEntry[1] }
-    : { date: formatDate(new Date()), signups: 0 }
-  
-  // Calculate averages
-  const totalDays = Object.keys(signupsByDay).length || 1
-  const averageDailySignups = users.length / totalDays
-  
-  const totalRevenue = Object.values(revenueByDay).reduce((sum, amount) => sum + amount, 0)
-  const revenueDays = Object.keys(revenueByDay).length || 1
-  const averageDailyRevenue = totalRevenue / revenueDays
-  
-  return {
-    topRevenueDay,
-    topSignupDay,
-    averageDailySignups,
-    averageDailyRevenue
-  }
+export function filterRevenueByDateRange(revenue: RevenueRecord[], dateRange: { start: Date; end: Date }): RevenueRecord[] {
+  return revenue.filter(record => {
+    const paymentDate = new Date(record.metadata.payment_date)
+    return isAfter(paymentDate, dateRange.start) && isBefore(paymentDate, dateRange.end)
+  })
 }

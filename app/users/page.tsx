@@ -1,95 +1,44 @@
 import { Suspense } from 'react'
-import { Users, UserPlus, Filter, Search } from 'lucide-react'
-import MetricCard from '@/components/MetricCard'
+import { Users, UserPlus, TrendingUp, CreditCard } from 'lucide-react'
+import UserStats from '@/components/UserStats'
 import UserTable from '@/components/UserTable'
 import UserFilters from '@/components/UserFilters'
 import UserSearch from '@/components/UserSearch'
-import UserStats from '@/components/UserStats'
 import { getUsers } from '@/lib/cosmic'
-import { calculateUserMetrics, formatNumber, calculateGrowthPercentage } from '@/lib/analytics'
 
 async function UsersContent() {
   try {
     const users = await getUsers()
-    const userMetrics = calculateUserMetrics(users)
-
-    // Calculate growth metrics
-    const today = new Date().toISOString().split('T')[0]
-    const newUsersToday = users.filter(user => {
-      const signupDate = (user.metadata.signup_date || user.created_at).split('T')[0]
-      return signupDate === today
-    }).length
-
-    const thisWeek = new Date()
-    thisWeek.setDate(thisWeek.getDate() - 7)
-    const newUsersThisWeek = users.filter(user => {
-      const signupDate = new Date(user.metadata.signup_date || user.created_at)
-      return signupDate >= thisWeek
-    }).length
-
-    // Mock previous week for growth calculation
-    const prevWeekUsers = Math.max(0, newUsersThisWeek - 5)
-    const weeklyGrowth = calculateGrowthPercentage(newUsersThisWeek, prevWeekUsers)
+    
+    const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
+    const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
+    const conversionRate = users.length > 0 ? (proUsers / users.length) * 100 : 0
 
     return (
       <div className="p-8 space-y-8">
-        {/* Header */}
         <div className="border-b border-border pb-6">
           <h1 className="text-3xl font-bold text-foreground">
             User Management
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage and monitor all users on your Deposit Defenders platform
+            Track user activity, subscriptions, and platform engagement
           </p>
         </div>
 
-        {/* User Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total Users"
-            value={formatNumber(userMetrics.totalUsers)}
-            change="all time"
-            icon={<Users size={24} />}
-          />
-          <MetricCard
-            title="New Today"
-            value={formatNumber(newUsersToday)}
-            change="vs yesterday"
-            trend={newUsersToday > 0 ? 'up' : 'neutral'}
-            icon={<UserPlus size={24} />}
-          />
-          <MetricCard
-            title="Weekly Growth"
-            value={weeklyGrowth}
-            change="new users"
-            trend={newUsersThisWeek > prevWeekUsers ? 'up' : 'neutral'}
-            icon={<Filter size={24} />}
-          />
-          <MetricCard
-            title="Active Users"
-            value={formatNumber(userMetrics.activeUsers)}
-            change={`${((userMetrics.activeUsers / userMetrics.totalUsers) * 100).toFixed(1)}% of total`}
-            icon={<Search size={24} />}
-          />
-        </div>
+        <UserStats 
+          users={users}
+          freeUsers={freeUsers}
+          proUsers={proUsers}
+          conversionRate={conversionRate}
+        />
 
-        {/* Search and Filters */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-1 space-y-6">
             <UserSearch />
-          </div>
-          <div>
             <UserFilters />
           </div>
-        </div>
-
-        {/* User Stats and Table */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
-            <UserStats users={users} />
-          </div>
           <div className="lg:col-span-3">
-            <UserTable users={users} showActions={true} />
+            <UserTable users={users} />
           </div>
         </div>
       </div>
@@ -103,7 +52,7 @@ async function UsersContent() {
             Users Error
           </h2>
           <p className="text-destructive-foreground">
-            Unable to load users data. Please check your Cosmic configuration.
+            Unable to load user data. Please check your configuration.
           </p>
         </div>
       </div>
@@ -119,9 +68,9 @@ function UsersLoading() {
         <div className="h-4 bg-accent rounded animate-pulse w-96" />
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="metric-card">
+          <div key={i} className="bg-card rounded-lg border p-4">
             <div className="h-4 bg-accent rounded animate-pulse mb-2" />
             <div className="h-8 bg-accent rounded animate-pulse mb-2" />
             <div className="h-4 bg-accent rounded animate-pulse w-16" />
