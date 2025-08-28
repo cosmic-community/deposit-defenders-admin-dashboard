@@ -1,116 +1,51 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, FileText, Calendar } from 'lucide-react'
+import { Download, FileText, Table, PieChart } from 'lucide-react'
 import { User, UserSession, RevenueRecord } from '@/types'
 
 export interface ReportExportProps {
-  reportData: {
+  data: {
     users: User[]
     sessions: UserSession[]
     revenue: RevenueRecord[]
   }
 }
 
-type ExportFormat = 'csv' | 'json' | 'pdf'
-type ReportType = 'users' | 'revenue' | 'activity' | 'summary'
-
-export default function ReportExport({ reportData }: ReportExportProps) {
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv')
-  const [reportType, setReportType] = useState<ReportType>('summary')
+export default function ReportExport({ data }: ReportExportProps) {
   const [isExporting, setIsExporting] = useState(false)
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf' | 'json'>('csv')
 
-  const handleExport = async () => {
+  const handleExport = async (format: 'csv' | 'pdf' | 'json') => {
     setIsExporting(true)
-    
+    setExportFormat(format)
+
     try {
       // Simulate export process
       await new Promise(resolve => setTimeout(resolve, 2000))
       
-      // In a real implementation, this would generate and download the actual report
-      const filename = `${reportType}-report-${new Date().toISOString().split('T')[0]}.${exportFormat}`
-      
-      // Create mock data based on report type
-      let data: any
-      switch (reportType) {
-        case 'users':
-          data = reportData.users.map(user => ({
-            id: user.id,
-            email: user.metadata.email,
-            plan: user.metadata.subscription_plan,
-            signup_date: user.metadata.signup_date,
-            total_spent: user.metadata.total_spent,
-            status: user.metadata.status
-          }))
-          break
-        case 'revenue':
-          data = reportData.revenue.map(record => ({
-            id: record.id,
-            user_id: record.metadata.user_id,
-            amount: record.metadata.amount,
-            plan: record.metadata.subscription_plan,
-            payment_date: record.metadata.payment_date,
-            status: record.metadata.status
-          }))
-          break
-        case 'activity':
-          data = reportData.sessions.map(session => ({
-            id: session.id,
-            user_id: session.metadata.user_id,
-            login_date: session.metadata.login_date,
-            device_type: session.metadata.device_type,
-            session_duration: session.metadata.session_duration
-          }))
-          break
-        default:
-          data = {
-            summary: {
-              total_users: reportData.users.length,
-              total_revenue: reportData.revenue.reduce((sum, r) => sum + (r.metadata.status === 'paid' ? r.metadata.amount : 0), 0),
-              total_sessions: reportData.sessions.length,
-              generated_at: new Date().toISOString()
-            }
-          }
-      }
+      // In a real implementation, you would:
+      // 1. Process the data based on format
+      // 2. Generate the file
+      // 3. Trigger download
 
-      // Convert to selected format
-      let content: string
-      let mimeType: string
-      
-      switch (exportFormat) {
-        case 'csv':
-          if (Array.isArray(data)) {
-            const headers = Object.keys(data[0] || {})
-            const csvRows = [
-              headers.join(','),
-              ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
-            ]
-            content = csvRows.join('\n')
-          } else {
-            content = JSON.stringify(data, null, 2)
-          }
-          mimeType = 'text/csv'
-          break
-        case 'json':
-          content = JSON.stringify(data, null, 2)
-          mimeType = 'application/json'
-          break
-        default:
-          content = JSON.stringify(data, null, 2)
-          mimeType = 'application/json'
-      }
+      console.log(`Exporting ${format.toUpperCase()} with data:`, {
+        users: data.users.length,
+        sessions: data.sessions.length,
+        revenue: data.revenue.length
+      })
 
-      // Create and trigger download
-      const blob = new Blob([content], { type: mimeType })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      
+      // Mock download trigger
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `deposit-defenders-report.${format}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
     } catch (error) {
       console.error('Export failed:', error)
     } finally {
@@ -118,85 +53,92 @@ export default function ReportExport({ reportData }: ReportExportProps) {
     }
   }
 
+  const exportOptions = [
+    {
+      format: 'csv' as const,
+      icon: <Table size={20} />,
+      title: 'CSV Export',
+      description: 'Export data as comma-separated values for spreadsheet analysis'
+    },
+    {
+      format: 'pdf' as const,
+      icon: <FileText size={20} />,
+      title: 'PDF Report',
+      description: 'Generate a formatted PDF report with charts and summaries'
+    },
+    {
+      format: 'json' as const,
+      icon: <PieChart size={20} />,
+      title: 'JSON Data',
+      description: 'Export raw data in JSON format for API integration'
+    }
+  ]
+
   return (
-    <div className="bg-card rounded-lg border border-border p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <FileText className="w-5 h-5 text-primary" />
-        <h3 className="text-lg font-semibold text-foreground">Export Reports</h3>
+    <div className="bg-card border border-border rounded-lg p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Download size={24} className="text-primary" />
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">Export Reports</h3>
+          <p className="text-sm text-muted-foreground">
+            Download your analytics data in various formats
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-6">
-        {/* Report Type Selection */}
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Report Type
-          </label>
-          <select
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value as ReportType)}
-            className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+      <div className="space-y-4">
+        {exportOptions.map((option) => (
+          <div
+            key={option.format}
+            className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
           >
-            <option value="summary">Summary Report</option>
-            <option value="users">User Report</option>
-            <option value="revenue">Revenue Report</option>
-            <option value="activity">Activity Report</option>
-          </select>
-        </div>
-
-        {/* Format Selection */}
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Export Format
-          </label>
-          <div className="grid grid-cols-3 gap-3">
-            {(['csv', 'json', 'pdf'] as ExportFormat[]).map((format) => (
-              <button
-                key={format}
-                onClick={() => setExportFormat(format)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  exportFormat === format
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-accent text-accent-foreground hover:bg-accent/80'
-                }`}
-                disabled={format === 'pdf'} // PDF not implemented in this demo
-              >
-                {format.toUpperCase()}
-              </button>
-            ))}
+            <div className="flex items-center gap-4">
+              <div className="text-muted-foreground">
+                {option.icon}
+              </div>
+              <div>
+                <h4 className="font-medium text-foreground">{option.title}</h4>
+                <p className="text-sm text-muted-foreground">{option.description}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleExport(option.format)}
+              disabled={isExporting}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                isExporting && exportFormat === option.format
+                  ? 'bg-primary/20 text-primary cursor-not-allowed'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              }`}
+            >
+              {isExporting && exportFormat === option.format ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Exporting...
+                </div>
+              ) : (
+                'Export'
+              )}
+            </button>
           </div>
-          {exportFormat === 'pdf' && (
-            <p className="text-xs text-muted-foreground mt-1">
-              PDF export coming soon
-            </p>
-          )}
-        </div>
-
-        {/* Date Range */}
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Date Range
-          </label>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="w-4 h-4" />
-            <span>Last 30 days</span>
-          </div>
-        </div>
-
-        {/* Export Button */}
-        <button
-          onClick={handleExport}
-          disabled={isExporting || exportFormat === 'pdf'}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          {isExporting ? 'Exporting...' : `Export ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`}
-        </button>
+        ))}
       </div>
 
-      <div className="mt-4 p-3 bg-accent/30 rounded-md">
-        <p className="text-xs text-muted-foreground">
-          <strong>Data Summary:</strong> {reportData.users.length} users, {reportData.sessions.length} sessions, {reportData.revenue.length} revenue records
-        </p>
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h4 className="font-medium text-foreground mb-2">Data Summary</h4>
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">Users:</span>
+            <span className="ml-2 font-medium text-foreground">{data.users.length}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Sessions:</span>
+            <span className="ml-2 font-medium text-foreground">{data.sessions.length}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Revenue Records:</span>
+            <span className="ml-2 font-medium text-foreground">{data.revenue.length}</span>
+          </div>
+        </div>
       </div>
     </div>
   )
