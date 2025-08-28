@@ -161,6 +161,108 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   })
 }
 
+// New activity-specific functions
+export function generateActivityData(sessions: UserSession[], users: User[]): ActivityData[] {
+  const data: { [date: string]: { logins: number; registrations: number; totalActivities: number } } = {}
+  const now = new Date()
+  
+  // Initialize last 30 days
+  for (let i = 29; i >= 0; i--) {
+    const date = format(subDays(now, i), 'yyyy-MM-dd')
+    data[date] = { logins: 0, registrations: 0, totalActivities: 0 }
+  }
+  
+  // Count sessions by date
+  sessions.forEach(session => {
+    const loginDate = session.metadata?.login_date ? 
+      format(parseISO(session.metadata.login_date), 'yyyy-MM-dd') :
+      format(parseISO(session.created_at), 'yyyy-MM-dd')
+    
+    if (data[loginDate]) {
+      data[loginDate].logins++
+      data[loginDate].totalActivities++
+    }
+  })
+  
+  // Count registrations by date
+  users.forEach(user => {
+    const signupDate = user.metadata?.signup_date ?
+      format(parseISO(user.metadata.signup_date), 'yyyy-MM-dd') :
+      format(parseISO(user.created_at), 'yyyy-MM-dd')
+    
+    if (data[signupDate]) {
+      data[signupDate].registrations++
+      data[signupDate].totalActivities++
+    }
+  })
+  
+  return Object.keys(data).sort().map(date => ({
+    date,
+    logins: data[date]?.logins || 0,
+    registrations: data[date]?.registrations || 0,
+    totalActivities: data[date]?.totalActivities || 0
+  }))
+}
+
+export function createActivityChart(data: ActivityData[]): ChartData {
+  return {
+    labels: data.map(d => format(parseISO(d.date), 'MMM dd')),
+    datasets: [
+      {
+        label: 'User Logins',
+        data: data.map(d => d.logins),
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 2,
+        fill: true
+      },
+      {
+        label: 'New Registrations',
+        data: data.map(d => d.registrations),
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderWidth: 2,
+        fill: false
+      },
+      {
+        label: 'Total Activities',
+        data: data.map(d => d.totalActivities),
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        borderWidth: 2,
+        fill: false
+      }
+    ]
+  }
+}
+
+export function createHourlyActivityChart(sessions: UserSession[]): ChartData {
+  // Initialize 24 hours with zero values
+  const hourlyData = Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 }))
+  
+  // Count sessions by hour
+  sessions.forEach(session => {
+    const loginDate = session.metadata?.login_date || session.created_at
+    const hour = new Date(loginDate).getHours()
+    if (hourlyData[hour]) {
+      hourlyData[hour].count++
+    }
+  })
+  
+  return {
+    labels: hourlyData.map(d => `${d.hour}:00`),
+    datasets: [
+      {
+        label: 'Sessions per Hour',
+        data: hourlyData.map(d => d.count),
+        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+        borderColor: '#3b82f6',
+        borderWidth: 1
+      }
+    ]
+  }
+}
+
 export function createUserGrowthChart(data: UserGrowthData[]): ChartData {
   return {
     labels: data.map(d => format(parseISO(d.date), 'MMM dd')),
@@ -246,4 +348,12 @@ export function calculateGrowthPercentage(current: number, previous: number): st
   const growth = ((current - previous) / previous) * 100
   const sign = growth >= 0 ? '+' : ''
   return `${sign}${growth.toFixed(1)}%`
+}
+
+// Activity data interface
+export interface ActivityData {
+  date: string
+  logins: number
+  registrations: number
+  totalActivities: number
 }

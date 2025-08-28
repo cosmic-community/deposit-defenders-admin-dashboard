@@ -91,6 +91,14 @@ export interface RevenueData {
   mrr: number;
 }
 
+// Activity-specific interfaces
+export interface ActivityData {
+  date: string;
+  logins: number;
+  registrations: number;
+  totalActivities: number;
+}
+
 // API response types
 export interface CosmicResponse<T> {
   objects: T[];
