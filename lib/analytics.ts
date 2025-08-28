@@ -105,97 +105,97 @@ export function calculateUserMetrics(users: User[]) {
   }
 }
 
-// Generate user growth data for charts - FIXED: Handle undefined dates properly
+// Generate user growth data for charts - FIXED: Ensure date is always string
 export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
     date.setDate(date.getDate() - (29 - i))
-    return date.toISOString().split('T')[0]
+    return date.toISOString().split('T')[0] // This guarantees a string
   })
 
-  return last30Days.map(date => {
+  return last30Days.map(dateString => {
     const signupsOnDate = users.filter(user => {
       const signupDateStr = user.metadata.signup_date
-      if (!signupDateStr) return false // FIXED: Handle undefined dates
+      if (!signupDateStr) return false
       const signupDate = new Date(signupDateStr).toISOString().split('T')[0]
-      return signupDate === date
+      return signupDate === dateString
     }).length
 
     const totalUsersUpToDate = users.filter(user => {
       const signupDateStr = user.metadata.signup_date
-      if (!signupDateStr) return false // FIXED: Handle undefined dates
+      if (!signupDateStr) return false
       const signupDate = new Date(signupDateStr)
-      return signupDate <= new Date(date) // FIXED: date is guaranteed to be string
+      return signupDate <= new Date(dateString)
     }).length
 
     return {
-      date, // FIXED: This is guaranteed to be a string (not undefined)
+      date: dateString, // Guaranteed to be string, not undefined
       signups: signupsOnDate,
       totalUsers: totalUsersUpToDate
     }
   })
 }
 
-// Generate revenue data for charts - FIXED: Handle undefined dates properly
+// Generate revenue data for charts - FIXED: Ensure date is always string
 export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
     date.setDate(date.getDate() - (29 - i))
-    return date.toISOString().split('T')[0]
+    return date.toISOString().split('T')[0] // This guarantees a string
   })
 
-  return last30Days.map(date => {
+  return last30Days.map(dateString => {
     const revenueOnDate = revenue
       .filter(record => {
         const paymentDateStr = record.metadata.payment_date
-        if (!paymentDateStr) return false // FIXED: Handle undefined dates
+        if (!paymentDateStr) return false
         const paymentDate = new Date(paymentDateStr).toISOString().split('T')[0]
-        return paymentDate === date && record.metadata.status === 'paid'
+        return paymentDate === dateString && record.metadata.status === 'paid'
       })
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
     const mrrUpToDate = revenue
       .filter(record => {
         const paymentDateStr = record.metadata.payment_date
-        if (!paymentDateStr) return false // FIXED: Handle undefined dates
+        if (!paymentDateStr) return false
         const paymentDate = new Date(paymentDateStr)
-        return paymentDate <= new Date(date) // FIXED: date is guaranteed to be string
+        return paymentDate <= new Date(dateString)
       })
       .reduce((sum, record) => sum + record.metadata.amount, 0)
 
     return {
-      date, // FIXED: This is guaranteed to be a string (not undefined)
+      date: dateString, // Guaranteed to be string, not undefined
       revenue: revenueOnDate,
       mrr: mrrUpToDate
     }
   })
 }
 
-// Generate activity data for charts - FIXED: Handle both UserSession[] and User[] parameters
+// Generate activity data for charts - FIXED: Ensure date is always string
 export function generateActivityData(sessions: UserSession[], users: User[]): ActivityData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const date = new Date()
     date.setDate(date.getDate() - (29 - i))
-    return date.toISOString().split('T')[0]
+    return date.toISOString().split('T')[0] // This guarantees a string
   })
 
-  return last30Days.map(date => {
+  return last30Days.map(dateString => {
     const loginsOnDate = sessions.filter(session => {
       const loginDateStr = session.metadata.login_date
-      if (!loginDateStr) return false // FIXED: Handle undefined dates
+      if (!loginDateStr) return false
       const loginDate = new Date(loginDateStr).toISOString().split('T')[0]
-      return loginDate === date
+      return loginDate === dateString
     }).length
 
     const registrationsOnDate = users.filter(user => {
       const signupDateStr = user.metadata.signup_date
-      if (!signupDateStr) return false // FIXED: Handle undefined dates
+      if (!signupDateStr) return false
       const signupDate = new Date(signupDateStr).toISOString().split('T')[0]
-      return signupDate === date
+      return signupDate === dateString
     }).length
 
     return {
-      date, // FIXED: This is guaranteed to be a string (not undefined)
+      date: dateString, // Guaranteed to be string, not undefined
       logins: loginsOnDate,
       registrations: registrationsOnDate,
       totalActivities: loginsOnDate + registrationsOnDate
@@ -242,7 +242,7 @@ export function createRevenueChart(data: RevenueData[]): ChartData {
   }
 }
 
-// Create chart data for activity - FIXED: Typo "New" should be "Date"
+// Create chart data for activity
 export function createActivityChart(data: ActivityData[]): ChartData {
   return {
     labels: data.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
@@ -337,7 +337,7 @@ export function calculatePercentageChange(current: number, previous: number): nu
   return ((current - previous) / previous) * 100
 }
 
-// Format date for display - FIXED: Return type should be string, not string[]
+// Format date for display - FIXED: Return type is string, not string[]
 export function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
