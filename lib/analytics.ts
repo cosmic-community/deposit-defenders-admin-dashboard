@@ -130,7 +130,7 @@ export function generateUserGrowthData(users: User[]): UserGrowthData[] {
       if (!signupDateStr) return false
       try {
         const signupDate = new Date(signupDateStr)
-        return signupDate <= new Date(dateString + 'T00:00:00.000Z') // FIXED: Ensure valid date string for constructor
+        return signupDate <= new Date(dateString + 'T23:59:59.999Z')
       } catch {
         return false
       }
@@ -172,7 +172,7 @@ export function generateRevenueData(revenue: RevenueRecord[]): RevenueData[] {
         if (!paymentDateStr) return false
         try {
           const paymentDate = new Date(paymentDateStr)
-          return paymentDate <= new Date(dateString + 'T00:00:00.000Z') // FIXED: Ensure valid date string for constructor
+          return paymentDate <= new Date(dateString + 'T23:59:59.999Z')
         } catch {
           return false
         }
