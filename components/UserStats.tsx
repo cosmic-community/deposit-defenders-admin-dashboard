@@ -1,73 +1,32 @@
-import { User } from '@/types'
-import { Users, UserPlus, Crown, Activity } from 'lucide-react'
-import { formatNumber, calculateGrowthPercentage } from '@/lib/analytics'
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 export interface UserStatsProps {
-  users: User[]
+  totalUsers: number;
+  activeUsers: number;
+  proUsers: number;
+  conversionRate: number;
 }
 
-export default function UserStats({ users }: UserStatsProps) {
-  if (!users || users.length === 0) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-card rounded-lg border border-border p-6">
-            <div className="h-4 bg-accent rounded animate-pulse mb-2" />
-            <div className="h-8 bg-accent rounded animate-pulse mb-2" />
-            <div className="h-4 bg-accent rounded animate-pulse w-16" />
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const totalUsers = users.length
-  const activeUsers = users.filter(user => user.metadata.status === 'active').length
-  const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
-  const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
-
-  // Calculate new users today
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const newUsersToday = users.filter(user => {
-    const signupDate = new Date(user.metadata.signup_date)
-    return signupDate >= today
-  }).length
-
-  // Calculate growth (using mock previous data for demo)
-  const prevTotalUsers = Math.max(0, totalUsers - 10) // Mock previous count
-  const userGrowth = calculateGrowthPercentage(totalUsers, prevTotalUsers)
-
-  const stats = [
-    {
-      title: 'Total Users',
-      value: formatNumber(totalUsers),
-      change: userGrowth,
-      trend: totalUsers > prevTotalUsers ? 'up' : 'neutral' as const,
-      icon: <Users size={24} />
-    },
-    {
-      title: 'Active Users',
-      value: formatNumber(activeUsers),
-      change: `${((activeUsers / totalUsers) * 100).toFixed(1)}% of total`,
-      trend: activeUsers > 0 ? 'up' : 'neutral' as const,
-      icon: <Activity size={24} />
-    },
-    {
-      title: 'Pro Subscribers',
-      value: formatNumber(proUsers),
-      change: `${((proUsers / totalUsers) * 100).toFixed(1)}% conversion`,
-      trend: proUsers > 0 ? 'up' : 'neutral' as const,
-      icon: <Crown size={24} />
-    },
-    {
-      title: 'New Today',
-      value: formatNumber(newUsersToday),
-      change: `${formatNumber(freeUsers)} free users`,
-      trend: newUsersToday > 0 ? 'up' : 'neutral' as const,
-      icon: <UserPlus size={24} />
+export default function UserStats({ 
+  totalUsers, 
+  activeUsers, 
+  proUsers, 
+  conversionRate 
+}: UserStatsProps) {
+  const freeUsers = totalUsers - proUsers
+  const activePercentage = totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0
+  
+  // Fix: Ensure proper trend type validation
+  const getTrendIcon = (trend: 'up' | 'down' | 'neutral') => {
+    switch (trend) {
+      case 'up':
+        return <TrendingUp size={16} className="text-green-500" />
+      case 'down':
+        return <TrendingDown size={16} className="text-red-500" />
+      default:
+        return <Minus size={16} className="text-muted-foreground" />
     }
-  ]
+  }
 
   const getTrendColor = (trend: 'up' | 'down' | 'neutral') => {
     switch (trend) {
@@ -80,26 +39,101 @@ export default function UserStats({ users }: UserStatsProps) {
     }
   }
 
+  // Fix: Ensure trend is properly typed as one of the allowed values
+  const getConversionTrend = (): 'up' | 'down' | 'neutral' => {
+    if (conversionRate > 15) return 'up'
+    if (conversionRate < 5) return 'down'
+    return 'neutral'
+  }
+
+  const conversionTrend = getConversionTrend()
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => (
-        <div key={index} className="bg-card rounded-lg border border-border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{stat.value}</p>
-              {stat.change && (
-                <p className={`text-sm mt-2 ${getTrendColor(stat.trend)}`}>
-                  {stat.change}
-                </p>
-              )}
-            </div>
-            <div className="text-muted-foreground">
-              {stat.icon}
-            </div>
+    <div className="bg-card rounded-lg border p-6">
+      <h2 className="text-xl font-semibold text-foreground mb-6">User Statistics</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Users */}
+        <div className="text-center">
+          <div className="text-3xl font-bold text-foreground mb-2">
+            {totalUsers.toLocaleString()}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Total Users
           </div>
         </div>
-      ))}
+
+        {/* Active Users */}
+        <div className="text-center">
+          <div className="text-3xl font-bold text-foreground mb-2">
+            {activeUsers.toLocaleString()}
+          </div>
+          <div className="text-sm text-muted-foreground mb-1">
+            Active Users
+          </div>
+          <div className="flex items-center justify-center gap-1">
+            {getTrendIcon(activePercentage > 70 ? 'up' : activePercentage < 30 ? 'down' : 'neutral')}
+            <span className={`text-xs ${getTrendColor(activePercentage > 70 ? 'up' : activePercentage < 30 ? 'down' : 'neutral')}`}>
+              {activePercentage.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Pro Users */}
+        <div className="text-center">
+          <div className="text-3xl font-bold text-foreground mb-2">
+            {proUsers.toLocaleString()}
+          </div>
+          <div className="text-sm text-muted-foreground mb-1">
+            Pro Subscribers
+          </div>
+          <div className="flex items-center justify-center gap-1">
+            {getTrendIcon(conversionTrend)}
+            <span className={`text-xs ${getTrendColor(conversionTrend)}`}>
+              {conversionRate.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Free Users */}
+        <div className="text-center">
+          <div className="text-3xl font-bold text-foreground mb-2">
+            {freeUsers.toLocaleString()}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Free Users
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Bars */}
+      <div className="mt-8 space-y-4">
+        <div>
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-muted-foreground">Active Users</span>
+            <span className="text-foreground">{activePercentage.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-accent rounded-full h-2">
+            <div 
+              className="bg-green-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, activePercentage)}%` }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-muted-foreground">Pro Conversion Rate</span>
+            <span className="text-foreground">{conversionRate.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-accent rounded-full h-2">
+            <div 
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, conversionRate * 2)}%` }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

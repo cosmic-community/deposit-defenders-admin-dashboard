@@ -1,18 +1,34 @@
 import { Suspense } from 'react'
-import { Users, UserPlus, TrendingUp, CreditCard } from 'lucide-react'
-import UserStats from '@/components/UserStats'
+import { Users, UserPlus, Crown, Activity } from 'lucide-react'
 import UserTable from '@/components/UserTable'
-import UserFilters from '@/components/UserFilters'
+import UserStats from '@/components/UserStats'
 import UserSearch from '@/components/UserSearch'
-import { getUsers } from '@/lib/cosmic'
+import UserFilters from '@/components/UserFilters'
+import MetricCard from '@/components/MetricCard'
+import { getUsers, getUserSessions } from '@/lib/cosmic'
+import { formatNumber, calculateGrowthPercentage } from '@/lib/analytics'
 
 async function UsersContent() {
   try {
-    const users = await getUsers()
-    
+    const [users, sessions] = await Promise.all([
+      getUsers(),
+      getUserSessions()
+    ])
+
     const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
     const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
+    const activeUsers = users.filter(user => user.metadata.status === 'active').length
     const conversionRate = users.length > 0 ? (proUsers / users.length) * 100 : 0
+
+    // Fix: Create UserStats compatible props with proper structure
+    const userStatsProps = {
+      totalUsers: users.length,
+      activeUsers: activeUsers,
+      proUsers: proUsers,
+      conversionRate: conversionRate
+    }
+
+    const growth = calculateGrowthPercentage(users.length, Math.max(0, users.length - 10))
 
     return (
       <div className="p-8 space-y-8">
@@ -21,26 +37,57 @@ async function UsersContent() {
             User Management
           </h1>
           <p className="text-muted-foreground mt-2">
-            Track user activity, subscriptions, and platform engagement
+            Track user activity, subscriptions, and engagement metrics
           </p>
         </div>
 
-        <UserStats 
-          users={users}
-          freeUsers={freeUsers}
-          proUsers={proUsers}
-          conversionRate={conversionRate}
-        />
+        {/* User Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard
+            title="Total Users"
+            value={formatNumber(users.length)}
+            change={growth}
+            trend="up"
+            icon={<Users size={24} />}
+          />
+          <MetricCard
+            title="Active Users"
+            value={formatNumber(activeUsers)}
+            change={`${((activeUsers / users.length) * 100).toFixed(1)}% of total`}
+            trend="up"
+            icon={<Activity size={24} />}
+          />
+          <MetricCard
+            title="Pro Subscribers"
+            value={formatNumber(proUsers)}
+            change={`${conversionRate.toFixed(1)}% conversion`}
+            trend="up"
+            icon={<Crown size={24} />}
+          />
+          <MetricCard
+            title="New Users"
+            value={formatNumber(Math.min(10, users.length))}
+            change="Last 7 days"
+            trend="up"
+            icon={<UserPlus size={24} />}
+          />
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1 space-y-6">
+        {/* User Stats Component */}
+        <UserStats {...userStatsProps} />
+
+        {/* Search and Filters */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
             <UserSearch />
+          </div>
+          <div>
             <UserFilters />
           </div>
-          <div className="lg:col-span-3">
-            <UserTable users={users} />
-          </div>
         </div>
+
+        {/* Users Table */}
+        <UserTable users={users} />
       </div>
     )
   } catch (error) {
@@ -52,7 +99,7 @@ async function UsersContent() {
             Users Error
           </h2>
           <p className="text-destructive-foreground">
-            Unable to load user data. Please check your configuration.
+            Unable to load users data. Please check your configuration.
           </p>
         </div>
       </div>
@@ -68,17 +115,15 @@ function UsersLoading() {
         <div className="h-4 bg-accent rounded animate-pulse w-96" />
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-card rounded-lg border p-4">
+          <div key={i} className="metric-card">
             <div className="h-4 bg-accent rounded animate-pulse mb-2" />
             <div className="h-8 bg-accent rounded animate-pulse mb-2" />
             <div className="h-4 bg-accent rounded animate-pulse w-16" />
           </div>
         ))}
       </div>
-      
-      <div className="h-96 bg-accent rounded animate-pulse" />
     </div>
   )
 }

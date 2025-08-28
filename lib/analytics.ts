@@ -79,6 +79,44 @@ export function calculateDashboardMetrics(
   }
 }
 
+// NEW: Add missing calculateUserMetrics function
+export function calculateUserMetrics(users: User[]): {
+  totalUsers: number;
+  freeUsers: number;
+  proUsers: number;
+  activeUsers: number;
+} {
+  const totalUsers = users.length
+  const freeUsers = users.filter(user => user.metadata.subscription_plan === 'free').length
+  const proUsers = users.filter(user => user.metadata.subscription_plan === 'pro').length
+  const activeUsers = users.filter(user => user.metadata.status === 'active').length
+
+  return {
+    totalUsers,
+    freeUsers,
+    proUsers,
+    activeUsers
+  }
+}
+
+// NEW: Add missing getTopMetrics function
+export function getTopMetrics(users: User[], sessions: UserSession[], revenue: RevenueRecord[]) {
+  const metrics = calculateDashboardMetrics(users, sessions, revenue)
+  
+  return {
+    topMetrics: [
+      { label: 'Total Users', value: metrics.totalUsers },
+      { label: 'Pro Users', value: metrics.proUsers },
+      { label: 'Total Revenue', value: metrics.totalRevenue },
+      { label: 'Active Users', value: metrics.activeUsers }
+    ],
+    growth: {
+      users: metrics.newUsersThisMonth,
+      revenue: metrics.monthlyRecurringRevenue
+    }
+  }
+}
+
 // Generate user growth data for charts
 export function generateUserGrowthData(users: User[]): UserGrowthData[] {
   const last30Days = Array.from({ length: 30 }, (_, i) => {
@@ -199,6 +237,7 @@ export function createSubscriptionChart(freeUsers: number, proUsers: number): Ch
     labels: ['Free Users', 'Pro Users'],
     datasets: [
       {
+        label: 'Users by Plan',
         data: [freeUsers, proUsers],
         backgroundColor: ['#94A3B8', '#3B82F6'],
         borderWidth: 0

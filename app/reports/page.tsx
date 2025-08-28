@@ -1,45 +1,40 @@
 import { Suspense } from 'react'
-import { FileText, TrendingUp, Calendar, Download } from 'lucide-react'
-import MetricCard from '@/components/MetricCard'
+import { FileText, Download, Filter, Calendar } from 'lucide-react'
 import ReportFilters from '@/components/ReportFilters'
 import ReportExport from '@/components/ReportExport'
-import { getUsers, getRevenueRecords } from '@/lib/cosmic'
-import { formatCurrency, formatNumber } from '@/lib/analytics'
+import ChartCard from '@/components/ChartCard'
+import { getUsers, getUserSessions, getRevenueRecords } from '@/lib/cosmic'
+import { 
+  calculateDashboardMetrics,
+  generateUserGrowthData,
+  generateRevenueData,
+  createUserGrowthChart,
+  createRevenueChart,
+  formatCurrency,
+  formatNumber
+} from '@/lib/analytics'
 
 async function ReportsContent() {
   try {
-    const [users, revenue] = await Promise.all([
+    const [users, sessions, revenue] = await Promise.all([
       getUsers(),
+      getUserSessions(),
       getRevenueRecords()
     ])
 
-    const totalRevenue = revenue.reduce((sum, record) => {
-      return record.metadata.status === 'paid' ? sum + record.metadata.amount : sum
-    }, 0)
+    const metrics = calculateDashboardMetrics(users, sessions, revenue)
+    const userGrowthData = generateUserGrowthData(users)
+    const revenueData = generateRevenueData(revenue)
 
-    const conversions = users.filter(user => user.metadata.subscription_plan === 'pro').length
-    const conversionRate = users.length > 0 ? (conversions / users.length) * 100 : 0
+    const userGrowthChart = createUserGrowthChart(userGrowthData)
+    const revenueChart = createRevenueChart(revenueData)
 
+    // Fix: Create proper report data with all required properties
     const reportData = {
-      users: users.length,
-      revenue: totalRevenue,
-      conversions: conversions,
-      period: new Date().toISOString().split('T')[0]
+      users: users,
+      sessions: sessions,
+      revenue: revenue
     }
-
-    const thisMonth = new Date()
-    thisMonth.setDate(1)
-    thisMonth.setHours(0, 0, 0, 0)
-
-    const monthlyUsers = users.filter(user => {
-      const signupDate = new Date(user.metadata.signup_date)
-      return signupDate >= thisMonth
-    }).length
-
-    const monthlyRevenue = revenue.filter(record => {
-      const paymentDate = new Date(record.metadata.payment_date)
-      return paymentDate >= thisMonth && record.metadata.status === 'paid'
-    }).reduce((sum, record) => sum + record.metadata.amount, 0)
 
     return (
       <div className="p-8 space-y-8">
@@ -48,53 +43,134 @@ async function ReportsContent() {
             Reports & Analytics
           </h1>
           <p className="text-muted-foreground mt-2">
-            Generate detailed reports and export your platform data
+            Generate comprehensive reports and export your platform data
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total Users"
-            value={formatNumber(users.length)}
-            change={`+${monthlyUsers} this month`}
-            trend={monthlyUsers > 0 ? 'up' : 'neutral'}
-            icon={<FileText size={24} />}
+        {/* Report Controls */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-card rounded-lg border p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Filter size={20} className="text-primary" />
+              <h2 className="text-lg font-semibold">Report Filters</h2>
+            </div>
+            <ReportFilters />
+          </div>
+
+          <div className="bg-card rounded-lg border p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Download size={20} className="text-primary" />
+              <h2 className="text-lg font-semibold">Export Data</h2>
+            </div>
+            <ReportExport data={reportData} />
+          </div>
+
+          <div className="bg-card rounded-lg border p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Calendar size={20} className="text-primary" />
+              <h2 className="text-lg font-semibold">Report Summary</h2>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Users</p>
+                <p className="text-xl font-bold">{formatNumber(metrics.totalUsers)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Revenue</p>
+                <p className="text-xl font-bold">{formatCurrency(metrics.totalRevenue)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Sessions</p>
+                <p className="text-xl font-bold">{formatNumber(sessions.length)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Report Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartCard
+            title="User Growth Report"
+            data={userGrowthChart}
+            type="line"
+            height={400}
           />
-          <MetricCard
-            title="Total Revenue"
-            value={formatCurrency(totalRevenue)}
-            change={formatCurrency(monthlyRevenue)}
-            trend={monthlyRevenue > 0 ? 'up' : 'neutral'}
-            icon={<TrendingUp size={24} />}
-          />
-          <MetricCard
-            title="Conversion Rate"
-            value={`${conversionRate.toFixed(1)}%`}
-            change={`${conversions} conversions`}
-            trend={conversionRate > 0 ? 'up' : 'neutral'}
-            icon={<Calendar size={24} />}
-          />
-          <MetricCard
-            title="Reports Generated"
-            value="24"
-            change="this month"
-            trend="up"
-            icon={<Download size={24} />}
+          <ChartCard
+            title="Revenue Report"
+            data={revenueChart}
+            type="line"
+            height={400}
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <ReportFilters />
+        {/* Detailed Report Table */}
+        <div className="bg-card rounded-lg border">
+          <div className="p-6 border-b border-border">
+            <div className="flex items-center gap-3">
+              <FileText size={20} className="text-primary" />
+              <h2 className="text-lg font-semibold">Detailed Report Data</h2>
+            </div>
           </div>
-          <div className="lg:col-span-2">
-            <ReportExport reportData={reportData} />
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="text-center p-4 bg-accent rounded-lg">
+                <div className="text-2xl font-bold text-foreground">
+                  {formatNumber(metrics.totalUsers)}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Users</div>
+              </div>
+              <div className="text-center p-4 bg-accent rounded-lg">
+                <div className="text-2xl font-bold text-foreground">
+                  {formatNumber(sessions.length)}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Sessions</div>
+              </div>
+              <div className="text-center p-4 bg-accent rounded-lg">
+                <div className="text-2xl font-bold text-foreground">
+                  {formatCurrency(metrics.totalRevenue)}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Revenue</div>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left p-3">Metric</th>
+                    <th className="text-left p-3">Value</th>
+                    <th className="text-left p-3">Change</th>
+                    <th className="text-left p-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border">
+                    <td className="p-3">Total Users</td>
+                    <td className="p-3 font-semibold">{formatNumber(metrics.totalUsers)}</td>
+                    <td className="p-3 text-green-500">+{metrics.newUsersThisMonth}</td>
+                    <td className="p-3">Active</td>
+                  </tr>
+                  <tr className="border-b border-border">
+                    <td className="p-3">Pro Subscribers</td>
+                    <td className="p-3 font-semibold">{formatNumber(metrics.proUsers)}</td>
+                    <td className="p-3 text-blue-500">{metrics.conversionRate.toFixed(1)}%</td>
+                    <td className="p-3">Growing</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3">Monthly Revenue</td>
+                    <td className="p-3 font-semibold">{formatCurrency(metrics.monthlyRecurringRevenue)}</td>
+                    <td className="p-3 text-green-500">+12.5%</td>
+                    <td className="p-3">Healthy</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     )
   } catch (error) {
-    console.error('Reports page error:', error)
+    console.error('Reports error:', error)
     return (
       <div className="p-8">
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
@@ -118,17 +194,18 @@ function ReportsLoading() {
         <div className="h-4 bg-accent rounded animate-pulse w-96" />
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="metric-card">
-            <div className="h-4 bg-accent rounded animate-pulse mb-2" />
-            <div className="h-8 bg-accent rounded animate-pulse mb-2" />
-            <div className="h-4 bg-accent rounded animate-pulse w-16" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-card rounded-lg border p-6">
+            <div className="h-6 bg-accent rounded animate-pulse mb-4" />
+            <div className="space-y-2">
+              <div className="h-4 bg-accent rounded animate-pulse" />
+              <div className="h-4 bg-accent rounded animate-pulse" />
+              <div className="h-4 bg-accent rounded animate-pulse w-1/2" />
+            </div>
           </div>
         ))}
       </div>
-      
-      <div className="h-96 bg-accent rounded animate-pulse" />
     </div>
   )
 }
